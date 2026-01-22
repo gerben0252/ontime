@@ -1,16 +1,20 @@
 import {
+  MaybeNumber,
   MaybeString,
+  OffsetMode,
   OntimeDelay,
   OntimeEntry,
   OntimeEvent,
   OntimeMilestone,
+  OntimeReport,
   PlayableEvent,
   Rundown,
   isOntimeEvent,
   isOntimeGroup,
   isPlayableEvent,
 } from 'ontime-types';
-import { checkIsNextDay, isNewLatest } from 'ontime-utils';
+import { checkIsNextDay, getExpectedStart, isNewLatest } from 'ontime-utils';
+import { useMemo } from 'react';
 
 export type RundownMetadata = {
   previousEvent: PlayableEvent | null; // The playableEvent from the previous iteration, used by indicators
@@ -30,6 +34,7 @@ export type RundownMetadata = {
 };
 
 export type ExtendedEntry<T extends OntimeEntry = OntimeEntry> = T & RundownMetadata;
+export type ExpectedEvent = ExtendedEntry<OntimeEvent> & { expectedStart: number; endedAt: MaybeNumber };
 
 export const lastMetadataKey = 'LAST';
 
@@ -172,4 +177,33 @@ function processEntry(
   }
 
   return processedData;
+}
+
+/**
+ * Unified way to decorate event with expected data
+ * TODO: could maybe be folded into RundownMetadata
+ */
+export function useExpectedEventData(
+  event: ExtendedEntry<OntimeEvent>,
+  currentDay: number,
+  actualStart: MaybeNumber,
+  plannedStart: MaybeNumber,
+  offset: number,
+  mode: OffsetMode,
+  reportData: OntimeReport,
+): ExpectedEvent {
+  const { totalGap, isLinkedToLoaded } = event;
+  const expectedStart = getExpectedStart(event, {
+    currentDay,
+    totalGap,
+    actualStart,
+    plannedStart,
+    isLinkedToLoaded,
+    offset,
+    mode,
+  });
+  const { endedAt } = reportData[event.id] ?? { endedAt: null };
+  return useMemo(() => {
+    return { ...event, expectedStart, endedAt };
+  }, [event, expectedStart, endedAt]);
 }
