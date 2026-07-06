@@ -39,21 +39,21 @@ export default function SingleEventCountdown({ subscribedEvent, goToEditMode }: 
   });
 
   const { endedAt } = reportData[subscribedEvent.id] ?? { endedAt: null };
-  const countdownEvent = { ...subscribedEvent, expectedStart, endedAt };
   const title = getPropertyValue(subscribedEvent, mainSource ?? 'title');
   const secondaryData = getPropertyValue(subscribedEvent, secondarySource);
 
   return (
     <div className='single-container' data-testid='countdown-event'>
-      <SubscriptionStatus event={countdownEvent} />
+      <SubscriptionStatus event={subscribedEvent} expectedStart={expectedStart} endedAt={endedAt} />
       <TitleCard
         title={title}
         secondary={secondaryData}
-        colour={countdownEvent.colour}
+        colour={subscribedEvent.colour}
         textAlign='center'
         size='lg'
-        event={countdownEvent}
+        event={subscribedEvent}
         showExpected={showExpected}
+        expectedStart={expectedStart}
       />
       <div className={cx(['fab-container', !showFab && 'fab-container--hidden'])}>
         <Button variant='primary' size='xlarge' onClick={goToEditMode}>
@@ -65,11 +65,13 @@ export default function SingleEventCountdown({ subscribedEvent, goToEditMode }: 
 }
 
 interface SubscriptionStatusProps {
-  event: ExtendedEntry<OntimeEvent> & { endedAt: MaybeNumber; expectedStart: number };
+  event: ExtendedEntry<OntimeEvent>;
+  endedAt: MaybeNumber;
+  expectedStart: number;
 }
 
-function SubscriptionStatus({ event }: SubscriptionStatusProps) {
-  const { status, statusDisplay, timeDisplay } = useSubscriptionDisplayData(event);
+function SubscriptionStatus({ event, endedAt, expectedStart }: SubscriptionStatusProps) {
+  const { status, statusDisplay, timeDisplay } = useSubscriptionDisplayData(event, endedAt, expectedStart);
 
   return (
     <>

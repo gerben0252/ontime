@@ -1,19 +1,16 @@
 import {
-  MaybeNumber,
   MaybeString,
-  OffsetMode,
   OntimeDelay,
   OntimeEntry,
   OntimeEvent,
   OntimeMilestone,
-  OntimeReport,
   PlayableEvent,
   Rundown,
   isOntimeEvent,
   isOntimeGroup,
   isPlayableEvent,
 } from 'ontime-types';
-import { checkIsNextDay, getExpectedStart, isNewLatest } from 'ontime-utils';
+import { checkIsNextDay, isNewLatest } from 'ontime-utils';
 
 export type RundownMetadata = {
   previousEvent: PlayableEvent | null; // The playableEvent from the previous iteration, used by indicators
@@ -175,32 +172,4 @@ function processEntry(
   }
 
   return processedData;
-}
-
-export type ExpectedEventData = { expectedStart: number; endedAt: MaybeNumber };
-
-/**
- * Unified way to decorate event with expected data
- */
-export function getExpectedEventData(
-  event: ExtendedEntry<OntimeEvent>,
-  currentDay: number,
-  actualStart: MaybeNumber,
-  plannedStart: MaybeNumber,
-  offset: number,
-  mode: OffsetMode,
-  reportData: OntimeReport,
-): ExpectedEventData {
-  const { totalGap, isLinkedToLoaded } = event;
-  const expectedStart = getExpectedStart(event, {
-    currentDay,
-    totalGap,
-    actualStart,
-    plannedStart,
-    isLinkedToLoaded,
-    offset,
-    mode,
-  });
-  const { endedAt } = reportData[event.id] ?? { endedAt: null };
-  return { expectedStart, endedAt };
 }

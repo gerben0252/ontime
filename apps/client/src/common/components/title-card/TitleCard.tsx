@@ -1,13 +1,14 @@
+import { OntimeEvent } from 'ontime-types';
 import { ForwardedRef, forwardRef } from 'react';
 
 import { useTranslation } from '../../../translation/TranslationProvider';
-import { ExpectedEventData } from '../../utils/rundownMetadata';
+import { ExtendedEntry } from '../../utils/rundownMetadata';
 import { cx, enDash } from '../../utils/styleUtils';
-import ScheduleTime from '../schedule-time/ScheduleTime';
 
 import './TitleCard.scss';
+import ScheduleTime from '../schedule-time/ScheduleTime';
 
-interface TitleCardProps {
+type TitleCardMainProps = {
   title?: string;
   label?: 'now' | 'next';
   secondary?: string;
@@ -15,10 +16,22 @@ interface TitleCardProps {
   colour?: string;
   textAlign?: 'left' | 'right' | 'center';
   size?: 'md' | 'lg';
-  event?: ExpectedEventData;
-  showExpected?: boolean;
   placeholder?: string;
-}
+};
+
+type TitleCardExpectedProps = TitleCardMainProps & {
+  event: ExtendedEntry<OntimeEvent>;
+  expectedStart: number;
+  showExpected: boolean;
+};
+
+type TitleCardNoExpectedProps = TitleCardMainProps & {
+  event?: undefined;
+  expectedStart?: undefined;
+  showExpected?: false;
+};
+
+type TitleCardProps = TitleCardExpectedProps | TitleCardNoExpectedProps;
 
 const TitleCard = forwardRef((props: TitleCardProps, ref: ForwardedRef<HTMLDivElement>) => {
   'use memo';
@@ -33,6 +46,7 @@ const TitleCard = forwardRef((props: TitleCardProps, ref: ForwardedRef<HTMLDivEl
     event,
     showExpected = false,
     placeholder = enDash,
+    expectedStart,
   } = props;
   const { getLocalizedString } = useTranslation();
 
@@ -40,7 +54,7 @@ const TitleCard = forwardRef((props: TitleCardProps, ref: ForwardedRef<HTMLDivEl
 
   return (
     <div className={cx(['title-card', className, size])} style={{ borderColor: colour }} ref={ref}>
-      {event && <ScheduleTime event={event} showExpected={showExpected} />}
+      {event && <ScheduleTime event={event} expectedStart={expectedStart} showExpected={showExpected} />}
       <span className='title-card__title' style={{ textAlign }} data-placeholder={placeholder}>
         {title === '' ? null : title}
       </span>
