@@ -1,7 +1,7 @@
 import { ForwardedRef, forwardRef } from 'react';
 
 import { useTranslation } from '../../../translation/TranslationProvider';
-import { ExpectedEvent } from '../../utils/rundownMetadata';
+import { ExpectedEventData } from '../../utils/rundownMetadata';
 import { cx, enDash } from '../../utils/styleUtils';
 import ScheduleTime from '../schedule-time/ScheduleTime';
 
@@ -15,12 +15,13 @@ interface TitleCardProps {
   colour?: string;
   textAlign?: 'left' | 'right' | 'center';
   size?: 'md' | 'lg';
-  event?: ExpectedEvent;
+  event?: ExpectedEventData;
   showExpected?: boolean;
   placeholder?: string;
 }
 
 const TitleCard = forwardRef((props: TitleCardProps, ref: ForwardedRef<HTMLDivElement>) => {
+  'use memo';
   const {
     label,
     title,
@@ -41,7 +42,7 @@ const TitleCard = forwardRef((props: TitleCardProps, ref: ForwardedRef<HTMLDivEl
     <div className={cx(['title-card', className, size])} style={{ borderColor: colour }} ref={ref}>
       {event && <ScheduleTime event={event} showExpected={showExpected} />}
       <span className='title-card__title' style={{ textAlign }} data-placeholder={placeholder}>
-        {title}
+        {title === '' ? null : title}
       </span>
       <span className={cx(['title-card__label', accent && 'title-card__label--accent'])}>
         {label && getLocalizedString(`common.${label}`)}

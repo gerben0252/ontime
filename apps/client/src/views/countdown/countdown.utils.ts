@@ -37,7 +37,9 @@ export const timerProgress: TimerMessage = {
  * Handles events in different days but disregards whether an event has actually played
  */
 export function useSubscriptionDisplayData(
-  subscribedEvent: ExtendedEntry<OntimeEvent> & { endedAt: MaybeNumber; expectedStart: number },
+  subscribedEvent: ExtendedEntry<OntimeEvent>,
+  endedAt: MaybeNumber,
+  expectedStart: number,
 ): { status: ProgressStatus; statusDisplay: string; timeDisplay: string } {
   const { playback, current, clock } = useCountdownSocket();
   const { getLocalizedString } = useTranslation();
@@ -81,11 +83,11 @@ export function useSubscriptionDisplayData(
     return {
       status: 'done',
       statusDisplay: getLocalizedString(timerProgress['done']),
-      timeDisplay: formatTime(subscribedEvent.endedAt, { format12: 'h:mm a', format24: 'HH:mm' }),
+      timeDisplay: formatTime(endedAt, { format12: 'h:mm a', format24: 'HH:mm' }),
     };
   }
 
-  if (subscribedEvent.expectedStart - clock <= 0) {
+  if (expectedStart - clock <= 0) {
     return {
       status: 'due',
       statusDisplay: getLocalizedString(timerProgress['future']), // We use future here on purpose for the look of it
@@ -96,7 +98,7 @@ export function useSubscriptionDisplayData(
   return {
     status: 'future',
     statusDisplay: getLocalizedString(timerProgress['future']),
-    timeDisplay: bigDuration(subscribedEvent.expectedStart - clock),
+    timeDisplay: bigDuration(expectedStart - clock),
   };
 }
 

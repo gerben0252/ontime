@@ -1,4 +1,5 @@
 import { MaybeNumber, OntimeEvent } from 'ontime-types';
+import { getExpectedStart } from 'ontime-utils';
 import { useEffect, useRef, useState } from 'react';
 import { IoPencil } from 'react-icons/io5';
 
@@ -8,16 +9,16 @@ import useReport from '../../common/hooks-query/useReport';
 import { useFadeOutOnInactivity } from '../../common/hooks/useFadeOutOnInactivity';
 import useFollowComponent from '../../common/hooks/useFollowComponent';
 import { useExpectedStartData, usePlayback, useSelectedEventId } from '../../common/hooks/useSocket';
-import { useExpectedEventData, ExtendedEntry } from '../../common/utils/rundownMetadata';
+import { ExtendedEntry } from '../../common/utils/rundownMetadata';
 import { cx } from '../../common/utils/styleUtils';
 import { throttle } from '../../common/utils/throttle';
 import FollowButton from '../../features/operator/follow-button/FollowButton';
 import SuperscriptTime from '../common/superscript-time/SuperscriptTime';
 import { getPropertyValue } from '../common/viewUtils';
 import { useCountdownOptions } from './countdown.options';
-import { getIsLive, useSubscriptionDisplayData } from './countdown.utils';
 
 import './Countdown.scss';
+import { getIsLive, useSubscriptionDisplayData } from './countdown.utils';
 
 interface CountdownSubscriptionsProps {
   subscribedEvents: ExtendedEntry<OntimeEvent>[];
@@ -25,6 +26,7 @@ interface CountdownSubscriptionsProps {
 }
 
 export default function CountdownSubscriptions({ subscribedEvents, goToEditMode }: CountdownSubscriptionsProps) {
+  'use memo';
   const { mainSource, secondarySource, showExpected } = useCountdownOptions();
   const playback = usePlayback();
   const selectedEventId = useSelectedEventId();
@@ -91,15 +93,17 @@ export default function CountdownSubscriptions({ subscribedEvents, goToEditMode 
         const secondaryData = getPropertyValue(event, secondarySource);
         const isLive = getIsLive(event.id, selectedEventId, playback);
         const isArmed = !isLive && event.id === selectedEventId;
-        const countdownEvent = useExpectedEventData(
-          event,
+        const { totalGap, isLinkedToLoaded } = event;
+        const expectedStart = getExpectedStart(event, {
           currentDay,
+          totalGap,
           actualStart,
           plannedStart,
+          isLinkedToLoaded,
           offset,
           mode,
-          reportData,
-        );
+        });
+        const { endedAt } = reportData[event.id] ?? { endedAt: null };
         const displayTitle = getPropertyValue(event, mainSource ?? 'title');
         return (
           <div
@@ -109,8 +113,13 @@ export default function CountdownSubscriptions({ subscribedEvents, goToEditMode 
             data-testid={event.cue}
           >
             <div className='sub__binder' style={{ '--user-color': event.colour }} />
-            <ScheduleTime event={countdownEvent} showExpected={showExpected} className='sub__schedule' />
-            <SubscriptionStatus event={countdownEvent} />
+            <ScheduleTime
+              event={event}
+              expectedStart={expectedStart}
+              showExpected={showExpected}
+              className='sub__schedule'
+            />
+            <SubscriptionStatus event={event} expectedStart={expectedStart} endedAt={endedAt} />
             <div className={cx(['sub__title', !displayTitle && 'subdued'])}>{displayTitle}</div>
             {secondaryData && <div className='sub__secondary'>{secondaryData}</div>}
           </div>
@@ -127,11 +136,14 @@ export default function CountdownSubscriptions({ subscribedEvents, goToEditMode 
 }
 
 interface SubscriptionStatusProps {
-  event: ExtendedEntry<OntimeEvent> & { endedAt: MaybeNumber; expectedStart: number };
+  event: ExtendedEntry<OntimeEvent>;
+  endedAt: MaybeNumber;
+  expectedStart: number;
 }
 
-function SubscriptionStatus({ event }: SubscriptionStatusProps) {
-  const { status, statusDisplay, timeDisplay } = useSubscriptionDisplayData(event);
+function SubscriptionStatus({ event, endedAt, expectedStart }: SubscriptionStatusProps) {
+  'use memo';
+  const { status, statusDisplay, timeDisplay } = useSubscriptionDisplayData(event, endedAt, expectedStart);
 
   return (
     <>
