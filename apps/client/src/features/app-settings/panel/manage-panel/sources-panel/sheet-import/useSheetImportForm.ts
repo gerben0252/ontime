@@ -1,18 +1,21 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SpreadsheetPreviewResponse, SpreadsheetWorksheetMetadata } from 'ontime-types';
 import { millisToString } from 'ontime-utils';
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 
 import { maybeAxiosError } from '../../../../../../common/api/utils';
 import { formatDuration } from '../../../../../../common/utils/time';
 import {
   type ImportFormValues,
+  type ImportOptions,
   builtInFieldDefs,
   convertToImportMap,
   getImportWarnings,
+  getPersistedImportOptions,
   getPersistedImportState,
   getResolvedCustomFields,
+  persistImportOptions,
   persistImportState,
 } from './importMapUtils';
 import { deriveHeaderOptionsState } from './spreadsheetImportUtils';
@@ -100,16 +103,18 @@ function buildColumnLabels(values: ImportFormValues): string[] {
 
 interface UseSheetImportFormProps {
   sourceKey: string;
+  defaultRundownName: string;
   worksheetNames: string[];
   initialMetadata: SpreadsheetWorksheetMetadata | null;
   loadMetadata: (worksheet: string) => Promise<SpreadsheetWorksheetMetadata>;
   previewImport: (importMap: ReturnType<typeof convertToImportMap>) => Promise<SpreadsheetPreviewResponse>;
-  onApply: (preview: SpreadsheetPreviewResponse) => Promise<void>;
+  onApply: (preview: SpreadsheetPreviewResponse, options: ImportOptions, newRundownTitle: string) => Promise<void>;
   onExport?: (importMap: ReturnType<typeof convertToImportMap>) => Promise<void>;
 }
 
 export function useSheetImportForm({
   sourceKey,
+  defaultRundownName,
   worksheetNames,
   initialMetadata,
   loadMetadata,
@@ -170,6 +175,9 @@ export function useSheetImportForm({
   const columnLabels = buildColumnLabels(values);
 
   const [state, dispatch] = useReducer(importReducer, initialImportState);
+  const [importOptions, setImportOptions] = useState<ImportOptions>(() => getPersistedImportOptions(sourceKey));
+  // ephemeral, per-import name for the "new rundown" destination, prefilled with the spreadsheet name
+  const [newRundownTitle, setNewRundownTitle] = useState(defaultRundownName);
   const warnings = getImportWarnings(values, headers);
   const warningCount = Object.values(warnings).filter(Boolean).length;
   const previewRef = useRef<SpreadsheetPreviewResponse | null>(null);
@@ -181,6 +189,12 @@ export function useSheetImportForm({
     reset(initialFormValues);
     dispatch({ type: 'reset' });
   }, [initialFormValues, reset]);
+
+  // Rehydrate the import options and prefilled name whenever the source context changes.
+  useEffect(() => {
+    setImportOptions(getPersistedImportOptions(sourceKey));
+    setNewRundownTitle(defaultRundownName);
+  }, [sourceKey, defaultRundownName]);
 
   // Keep the worksheet selection valid if the available worksheets change underneath the form.
   useEffect(() => {
@@ -241,13 +255,14 @@ export function useSheetImportForm({
 
     try {
       dispatch({ type: 'startApply' });
-      await onApply(state.preview);
+      await onApply(state.preview, importOptions, newRundownTitle);
       persistImportState(sourceKey, getValues());
+      persistImportOptions(sourceKey, importOptions);
       dispatch({ type: 'applySuccess' });
     } catch (error) {
       dispatch({ type: 'failure', error: maybeAxiosError(error) });
     }
-  }, [getValues, onApply, sourceKey, state.preview]);
+  }, [getValues, importOptions, newRundownTitle, onApply, sourceKey, state.preview]);
 
   const handleExport = useCallback(
     async (formValues: ImportFormValues) => {
@@ -300,6 +315,10 @@ export function useSheetImportForm({
     isBusy,
     canPreview,
     displayError,
+    importOptions,
+    setImportOptions,
+    newRundownTitle,
+    setNewRundownTitle,
     handlePreviewSubmit: handleSubmit(handlePreview),
     handleExportSubmit: handleSubmit(handleExport),
     handleApply,

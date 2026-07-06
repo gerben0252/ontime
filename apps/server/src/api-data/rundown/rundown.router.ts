@@ -1,7 +1,15 @@
 import type { Request, Response, Router } from 'express';
 import express from 'express';
 import { matchedData } from 'express-validator';
-import { ErrorResponse, OntimeEntry, ProjectRundownsList, RenumberCues, Rundown } from 'ontime-types';
+import {
+  ErrorResponse,
+  OntimeEntry,
+  ProjectRundowns,
+  ProjectRundownsList,
+  RenumberCues,
+  Rundown,
+  RundownImportPayload,
+} from 'ontime-types';
 import { getErrorMessage } from 'ontime-utils';
 
 import { getDataProvider } from '../../classes/data-provider/DataProvider.js';
@@ -13,6 +21,7 @@ import {
   batchEditEntries,
   cloneEntry,
   createNewRundown,
+  createRundownFromImport,
   deleteAllEntries,
   deleteEntries,
   deleteRundown,
@@ -20,6 +29,7 @@ import {
   editEntry,
   groupEntries,
   loadRundown,
+  mergeRundownFromImport,
   renameRundown,
   renumberEntries,
   reorderEntry,
@@ -36,6 +46,7 @@ import {
   entryReorderValidator,
   entrySwapValidator,
   rundownArrayOfIds,
+  rundownImportValidator,
   rundownPatchValidator,
   rundownPostValidator,
 } from './rundown.validation.js';
@@ -146,6 +157,34 @@ router.delete('/:id', paramsWithId, async (req: Request, res: Response<ProjectRu
     res.status(400).send({ message });
   }
 });
+
+/**
+ * Applies an imported rundown using a merge strategy or into a new rundown.
+ * The 'override' strategy is not handled here, it uses the generic PATCH /db endpoint.
+ */
+router.post(
+  '/import',
+  rundownImportValidator,
+  async (req: Request, res: Response<ProjectRundownsList | ErrorResponse>) => {
+    try {
+      const { mode, targetRundownId, rundown, customFields } = matchedData<RundownImportPayload>(req);
+      let projectRundowns: ProjectRundowns;
+      if (mode === 'merge') {
+        // the validator guarantees this for merge, the guard narrows the type and adds defence in depth
+        if (!targetRundownId) {
+          throw new Error('targetRundownId is required when mode is merge');
+        }
+        projectRundowns = await mergeRundownFromImport(targetRundownId, rundown, customFields);
+      } else {
+        projectRundowns = await createRundownFromImport(rundown, customFields);
+      }
+      res.status(200).json({ loaded: getCurrentRundown().id, rundowns: normalisedToRundownArray(projectRundowns) });
+    } catch (error) {
+      const message = getErrorMessage(error);
+      res.status(400).send({ message });
+    }
+  },
+);
 
 // #endregion operations on project rundowns ======================
 

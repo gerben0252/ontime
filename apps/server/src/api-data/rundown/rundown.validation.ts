@@ -11,6 +11,22 @@ export const rundownPatchValidator = [
   requestValidationFunction,
 ];
 
+export const rundownImportValidator = [
+  body('mode').isString().isIn(['merge', 'new']),
+  body('targetRundownId')
+    .if(body('mode').equals('merge'))
+    .isString()
+    .trim()
+    .notEmpty()
+    .withMessage('targetRundownId is required when mode is merge'),
+  body('rundown').isObject(),
+  body('rundown.entries').isObject(),
+  body('rundown.order').isArray(),
+  body('rundown.flatOrder').isArray(),
+  body('customFields').isObject(),
+  requestValidationFunction,
+];
+
 // #endregion operations on project rundowns ======================
 // #region operations on rundown entries ==========================
 

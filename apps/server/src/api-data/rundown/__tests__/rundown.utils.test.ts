@@ -1,8 +1,9 @@
-import { EndAction, OntimeEvent, TimeStrategy, TimerType } from 'ontime-types';
+import { EndAction, isOntimeEvent, OntimeEvent, TimeStrategy, TimerLifeCycle, TimerType, Trigger } from 'ontime-types';
 import { MILLIS_PER_HOUR, createEvent } from 'ontime-utils';
 import { assertType } from 'vitest';
 
-import { makeOntimeEvent, makeOntimeGroup, makeRundown } from '../__mocks__/rundown.mocks.js';
+import { makeOntimeEvent, makeOntimeGroup, makeOntimeMilestone, makeRundown } from '../__mocks__/rundown.mocks.js';
+import { parseRundown } from '../rundown.parser.js';
 import {
   calculateDayOffset,
   deleteById,
@@ -10,6 +11,7 @@ import {
   getIntegerAndFraction,
   hasChanges,
   makeDeepClone,
+  mergeRundownPreservingFields,
 } from '../rundown.utils.js';
 
 describe('test event validator', () => {
@@ -285,5 +287,136 @@ describe('getIntegerAndFraction()', () => {
 
   test('floating separator', () => {
     expect(getIntegerAndFraction('123.')).toStrictEqual({ integer: 123, faction: 0, precision: 0 });
+  });
+});
+
+describe('mergeRundownPreservingFields()', () => {
+  const trigger: Trigger = {
+    id: 'trigger-1',
+    title: 'Automation',
+    trigger: TimerLifeCycle.onStart,
+    automationId: 'automation-1',
+  };
+
+  it('preserves triggers and timeStrategy on matched events while the sheet leads on everything else', () => {
+    const existing = makeRundown({
+      id: 'rundown-id',
+      title: 'Existing title',
+      revision: 3,
+      order: ['a', 'b'],
+      entries: {
+        a: makeOntimeEvent({ id: 'a', title: 'old A', triggers: [trigger], timeStrategy: TimeStrategy.LockEnd }),
+        b: makeOntimeEvent({ id: 'b', title: 'old B', triggers: [trigger] }),
+      },
+    });
+    const incoming = makeRundown({
+      id: 'incoming-id',
+      title: 'Incoming title',
+      revision: 0,
+      order: ['a', 'c'],
+      entries: {
+        a: makeOntimeEvent({ id: 'a', title: 'new A', triggers: [], timeStrategy: TimeStrategy.LockDuration }),
+        c: makeOntimeEvent({ id: 'c', title: 'new C', triggers: [] }),
+      },
+    });
+
+    const merged = mergeRundownPreservingFields(incoming, existing);
+
+    // identity and revision come from the existing rundown
+    expect(merged.id).toBe('rundown-id');
+    expect(merged.title).toBe('Existing title');
+    expect(merged.revision).toBe(4);
+
+    // structure comes from the incoming rundown
+    expect(merged.order).toEqual(['a', 'c']);
+    expect(merged.flatOrder).toEqual(incoming.flatOrder);
+
+    // matched event: sheet data wins, but triggers and timeStrategy are preserved
+    const a = merged.entries.a as OntimeEvent;
+    expect(a.title).toBe('new A');
+    expect(a.triggers).toEqual([trigger]);
+    expect(a.timeStrategy).toBe(TimeStrategy.LockEnd);
+
+    // unmatched incoming event is passed through unchanged
+    expect((merged.entries.c as OntimeEvent).triggers).toEqual([]);
+
+    // existing event not present in the sheet is dropped
+    expect(merged.entries.b).toBeUndefined();
+  });
+
+  it('does not mutate the incoming rundown and deep-clones preserved triggers', () => {
+    const existing = makeRundown({
+      id: 'rundown-id',
+      order: ['a'],
+      entries: { a: makeOntimeEvent({ id: 'a', triggers: [trigger] }) },
+    });
+    const incomingEvent = makeOntimeEvent({ id: 'a', triggers: [] });
+    const incoming = makeRundown({ id: 'incoming-id', order: ['a'], entries: { a: incomingEvent } });
+
+    const merged = mergeRundownPreservingFields(incoming, existing);
+
+    // the incoming event object is not mutated
+    expect(incomingEvent.triggers).toEqual([]);
+
+    // preserved triggers are a copy, not a shared reference
+    (merged.entries.a as OntimeEvent).triggers.push({ ...trigger, id: 'trigger-2' });
+    expect((existing.entries.a as OntimeEvent).triggers).toEqual([trigger]);
+  });
+
+  it('does not preserve fields when the matched ids have different types', () => {
+    const existing = makeRundown({
+      id: 'rundown-id',
+      order: ['a'],
+      entries: { a: makeOntimeGroup({ id: 'a', title: 'a group' }) },
+    });
+    const incoming = makeRundown({
+      id: 'incoming-id',
+      order: ['a'],
+      entries: { a: makeOntimeEvent({ id: 'a', title: 'an event', triggers: [] }) },
+    });
+
+    const merged = mergeRundownPreservingFields(incoming, existing);
+
+    expect(isOntimeEvent(merged.entries.a)).toBe(true);
+    expect((merged.entries.a as OntimeEvent).triggers).toEqual([]);
+  });
+
+  it('passes groups and milestones through unchanged', () => {
+    const incoming = makeRundown({
+      id: 'incoming-id',
+      order: ['g', 'm'],
+      entries: {
+        g: makeOntimeGroup({ id: 'g', title: 'a group' }),
+        m: makeOntimeMilestone({ id: 'm', title: 'a milestone' }),
+      },
+    });
+    const existing = makeRundown({ id: 'rundown-id', order: [], entries: {} });
+
+    const merged = mergeRundownPreservingFields(incoming, existing);
+
+    expect(merged.entries.g).toEqual(incoming.entries.g);
+    expect(merged.entries.m).toEqual(incoming.entries.m);
+  });
+
+  it('keeps preserved fields through a parseRundown round-trip', () => {
+    const existing = makeRundown({
+      id: 'rundown-id',
+      order: ['a'],
+      entries: { a: makeOntimeEvent({ id: 'a', triggers: [trigger], timeStrategy: TimeStrategy.LockEnd }) },
+    });
+    const incoming = makeRundown({
+      id: 'incoming-id',
+      order: ['a'],
+      entries: {
+        a: makeOntimeEvent({ id: 'a', title: 'new', triggers: [], timeStrategy: TimeStrategy.LockDuration }),
+      },
+    });
+
+    const merged = mergeRundownPreservingFields(incoming, existing);
+    const parsed = parseRundown(merged, {});
+
+    const a = parsed.entries.a as OntimeEvent;
+    expect(a.triggers).toEqual([trigger]);
+    expect(a.timeStrategy).toBe(TimeStrategy.LockEnd);
   });
 });

@@ -1,11 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   builtInFieldDefs,
   convertToImportMap,
   createDefaultFormValues,
+  createDefaultImportOptions,
   getImportWarnings,
+  getPersistedImportOptions,
   getResolvedCustomFields,
+  persistImportOptions,
 } from '../importMapUtils';
 
 const cueIndex = builtInFieldDefs.findIndex((field) => field.label === 'Cue');
@@ -126,5 +129,28 @@ describe('convertToImportMap()', () => {
     expect(importMap.custom).toStrictEqual({
       'FOH Monitor': 'FOH/Monitor',
     });
+  });
+});
+
+describe('import options persistence', () => {
+  const sourceKey = 'excel-test';
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('defaults to current + override when nothing is persisted', () => {
+    expect(getPersistedImportOptions(sourceKey)).toStrictEqual({ destination: 'current', strategy: 'override' });
+    expect(createDefaultImportOptions()).toStrictEqual({ destination: 'current', strategy: 'override' });
+  });
+
+  it('round-trips a persisted value', () => {
+    persistImportOptions(sourceKey, { destination: 'new', strategy: 'merge' });
+    expect(getPersistedImportOptions(sourceKey)).toStrictEqual({ destination: 'new', strategy: 'merge' });
+  });
+
+  it('falls back to the default when the persisted value is malformed', () => {
+    persistImportOptions(sourceKey, { destination: 'nonsense', strategy: 'merge' } as never);
+    expect(getPersistedImportOptions(sourceKey)).toStrictEqual({ destination: 'current', strategy: 'override' });
   });
 });

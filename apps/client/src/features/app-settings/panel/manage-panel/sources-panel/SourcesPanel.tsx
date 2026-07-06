@@ -25,6 +25,7 @@ import useRundown from '../../../../../common/hooks-query/useRundown';
 import { validateExcelImport } from '../../../../../common/utils/uploadUtils';
 import * as Panel from '../../../panel-utils/PanelUtils';
 import GSheetSetup from './GSheetSetup';
+import type { ImportOptions } from './sheet-import/importMapUtils';
 import SheetImportEditor from './sheet-import/SheetImportEditor';
 import useSpreadsheetImport from './useSpreadsheetImport';
 
@@ -35,6 +36,7 @@ const googleSheetDocsUrl = 'https://docs.getontime.no/features/import-spreadshee
 type ActiveSource =
   | {
       kind: 'excel';
+      fileName: string;
       worksheetNames: string[];
       initialWorksheetMetadata: SpreadsheetWorksheetMetadata | null;
       closedByUser: boolean;
@@ -55,7 +57,7 @@ export default function SourcesPanel() {
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
 
   const { data: currentRundown } = useRundown();
-  const { importRundown } = useSpreadsheetImport();
+  const { importRundown, applyImportWithOptions } = useSpreadsheetImport();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -74,6 +76,7 @@ export default function SourcesPanel() {
       const worksheetOptions = await uploadExcel(fileToUpload);
       setActiveSource({
         kind: 'excel',
+        fileName: fileToUpload.name,
         worksheetNames: worksheetOptions.worksheets,
         initialWorksheetMetadata: worksheetOptions.metadata,
         closedByUser: false,
@@ -126,11 +129,38 @@ export default function SourcesPanel() {
     setError('');
   };
 
-  const handleApplyImport = async (preview: SpreadsheetPreviewResponse) => {
+  const handleApplyImport = async (
+    preview: SpreadsheetPreviewResponse,
+    options: ImportOptions,
+    newRundownTitle: string,
+  ) => {
+    if (options.destination === 'new') {
+      const title = newRundownTitle.trim() || preview.rundown.title;
+      await applyImportWithOptions({
+        mode: 'new',
+        rundown: { ...preview.rundown, title },
+        customFields: preview.customFields,
+      });
+      handleFinished();
+      return;
+    }
+
     if (!currentRundown) {
       throw new Error('No current rundown loaded');
     }
 
+    if (options.strategy === 'merge') {
+      await applyImportWithOptions({
+        mode: 'merge',
+        targetRundownId: currentRundown.id,
+        rundown: preview.rundown,
+        customFields: preview.customFields,
+      });
+      handleFinished();
+      return;
+    }
+
+    // override: replace the current rundown wholesale (unchanged legacy behaviour)
     await importRundown(
       {
         [currentRundown.id]: {
@@ -207,6 +237,13 @@ export default function SourcesPanel() {
     if (!activeSource) return null;
     if (activeSource.kind === 'excel') return 'excel';
     return `gsheet:${activeSource.sheetId}`;
+  })();
+  // suggested name when importing into a new rundown: the spreadsheet file name (without extension)
+  // for Excel, or the document title for Google Sheets
+  const spreadsheetName = (() => {
+    if (!activeSource) return '';
+    if (activeSource.kind === 'excel') return activeSource.fileName.replace(/\.[^./\\]+$/, '');
+    return activeSource.title;
   })();
 
   return (
@@ -287,6 +324,7 @@ export default function SourcesPanel() {
           bodyElements={
             <SheetImportEditor
               sourceKey={sourceKey ?? 'spreadsheet'}
+              defaultRundownName={spreadsheetName}
               worksheetNames={activeSource?.worksheetNames ?? []}
               initialMetadata={activeSource?.initialWorksheetMetadata ?? null}
               loadMetadata={loadWorksheetMetadata}

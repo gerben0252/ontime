@@ -1,3 +1,4 @@
+import type { RundownImportDestination, RundownImportMergeStrategy } from 'ontime-types';
 import type { ImportMap } from 'ontime-utils';
 
 import { makeStageKey } from '../../../../../../common/utils/localStorage';
@@ -147,6 +148,62 @@ export function getPersistedImportState(sourceKey: string): { values: ImportForm
     // Parse error - delete corrupted data
     localStorage.removeItem(storageKey);
     return { values: createDefaultFormValues(), isPersisted: false };
+  }
+}
+
+/**
+ * Import options (destination + merge strategy) are persisted separately from the field mapping
+ * so the mapping schema guard stays untouched.
+ */
+export type ImportOptions = {
+  destination: RundownImportDestination;
+  strategy: RundownImportMergeStrategy;
+};
+
+export function createDefaultImportOptions(): ImportOptions {
+  return { destination: 'current', strategy: 'override' };
+}
+
+function getImportOptionsKey(sourceKey: string) {
+  return makeStageKey(`import-options:${sourceKey}`);
+}
+
+export function persistImportOptions(sourceKey: string, options: ImportOptions) {
+  localStorage.setItem(getImportOptionsKey(sourceKey), JSON.stringify(options));
+}
+
+function isPersistedImportOptions(obj: unknown): obj is ImportOptions {
+  if (typeof obj !== 'object' || obj === null) {
+    return false;
+  }
+
+  const candidate = obj as Record<string, unknown>;
+  return (
+    (candidate.destination === 'current' || candidate.destination === 'new') &&
+    (candidate.strategy === 'override' || candidate.strategy === 'merge')
+  );
+}
+
+export function getPersistedImportOptions(sourceKey: string): ImportOptions {
+  const storageKey = getImportOptionsKey(sourceKey);
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) {
+      return createDefaultImportOptions();
+    }
+
+    const parsed: unknown = JSON.parse(raw);
+    if (isPersistedImportOptions(parsed)) {
+      return parsed;
+    }
+
+    // Invalid schema - delete malformed data
+    localStorage.removeItem(storageKey);
+    return createDefaultImportOptions();
+  } catch {
+    // Parse error - delete corrupted data
+    localStorage.removeItem(storageKey);
+    return createDefaultImportOptions();
   }
 }
 

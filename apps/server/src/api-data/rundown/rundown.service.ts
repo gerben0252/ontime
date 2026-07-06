@@ -15,6 +15,7 @@ import {
   isOntimeDelay,
   isOntimeEvent,
   isOntimeGroup,
+  isPlayableEvent,
 } from 'ontime-types';
 import { customFieldLabelToKey, generateId, getInsertAfterId, resolveInsertParent } from 'ontime-utils';
 
@@ -25,6 +26,7 @@ import { makeNewRundown } from '../../models/dataModel.js';
 import { setLastLoadedRundown } from '../../services/app-state-service/AppStateService.js';
 import { runtimeService } from '../../services/runtime-service/runtime.service.js';
 import { updateRundownData } from '../../stores/runtimeState.js';
+import { parseCustomFields } from '../custom-fields/customFields.parser.js';
 import {
   createTransaction,
   customFieldMutation,
@@ -33,8 +35,9 @@ import {
   rundownMutation,
   updateBackgroundRundown,
 } from './rundown.dao.js';
+import { parseRundown } from './rundown.parser.js';
 import type { RundownMetadata } from './rundown.types.js';
-import { generateEvent, getIntegerAndFraction, hasChanges } from './rundown.utils.js';
+import { generateEvent, getIntegerAndFraction, hasChanges, mergeRundownPreservingFields } from './rundown.utils.js';
 
 /**
  * creates a new entry with given data
@@ -663,8 +666,13 @@ export async function initRundown(
   rundown: Readonly<Rundown>,
   customFields: Readonly<CustomFields>,
   reload: boolean = false,
+  options?: { skipPlaybackStop?: boolean },
 ) {
-  runtimeService.stop();
+  // by default switching rundowns stops playback
+  // callers preserving playback (e.g. a merge import that keeps the playing event) can opt out
+  if (!options?.skipPlaybackStop) {
+    runtimeService.stop();
+  }
   const { rundownMetadata, revision } = rundownCache.init(rundown, customFields);
   logger.info(LogOrigin.Server, `Switch to rundown: ${rundown.id}`);
   // notify runtime that rundown has changed
@@ -735,6 +743,84 @@ export async function duplicateExistingRundown(id: string) {
   duplicatedRundown.revision = 0;
 
   await dataProvider.setRundown(duplicatedRundown.id, duplicatedRundown);
+
+  setImmediate(() => {
+    sendRefetch(RefetchKey.ProjectRundowns);
+  });
+
+  return dataProvider.getProjectRundowns();
+}
+
+/**
+ * Applies an imported rundown into an existing rundown using the "merge" strategy:
+ * elements matched by id preserve fields the spreadsheet cannot express (triggers/automations,
+ * timeStrategy); the incoming rundown is otherwise authoritative for identity and order.
+ *
+ * If the target is the loaded rundown and the currently playing event survives the merge,
+ * playback is preserved (hot reload) instead of being stopped.
+ * @throws if the target rundown does not exist
+ */
+export async function mergeRundownFromImport(
+  targetRundownId: string,
+  incomingRundown: Rundown,
+  incomingCustomFields: CustomFields,
+): Promise<ProjectRundowns> {
+  const dataProvider = getDataProvider();
+  // throws if the rundown was deleted between preview and apply
+  const existing = dataProvider.getRundown(targetRundownId);
+
+  // Build and validate the merged rundown BEFORE mutating any shared state, so a bad
+  // payload cannot leave a partial custom-field change behind. Entry custom-field validation
+  // only needs the resulting set of keys, which is the union of existing and incoming.
+  const parsedCustomFields = parseCustomFields({ customFields: incomingCustomFields });
+  const mergedCustomFields = { ...dataProvider.getCustomFields(), ...parsedCustomFields };
+  const merged = mergeRundownPreservingFields(incomingRundown, existing);
+  // re-validate the client supplied payload; createEvent preserves the fields set by the merge
+  const parsed = parseRundown(merged, mergedCustomFields);
+
+  // commit the custom fields only after the rundown has been validated
+  await dataProvider.mergeIntoData({ customFields: parsedCustomFields });
+  const projectCustomFields = dataProvider.getCustomFields();
+
+  if (isCurrentRundown(targetRundownId)) {
+    // preserve playback when the loaded event survives the merge and is still playable
+    const loadedId = runtimeService.getLoadedEventId();
+    const survivingEntry = loadedId ? parsed.entries[loadedId] : undefined;
+    const survives = survivingEntry !== undefined && isOntimeEvent(survivingEntry) && isPlayableEvent(survivingEntry);
+    await initRundown(parsed, projectCustomFields, true, { skipPlaybackStop: survives });
+  } else {
+    await dataProvider.setRundown(parsed.id, parsed);
+    setImmediate(() => {
+      sendRefetch(RefetchKey.ProjectRundowns);
+    });
+  }
+
+  return dataProvider.getProjectRundowns();
+}
+
+/**
+ * Creates a new rundown from an imported rundown.
+ * Does not touch the loaded rundown or playback.
+ */
+export async function createRundownFromImport(
+  incomingRundown: Rundown,
+  incomingCustomFields: CustomFields,
+): Promise<ProjectRundowns> {
+  const dataProvider = getDataProvider();
+
+  // Validate the rundown BEFORE mutating any shared state, so a bad payload cannot leave a
+  // partial custom-field change behind. Entry custom-field validation only needs the resulting
+  // set of keys, which is the union of existing and incoming.
+  const parsedCustomFields = parseCustomFields({ customFields: incomingCustomFields });
+  const mergedCustomFields = { ...dataProvider.getCustomFields(), ...parsedCustomFields };
+
+  // assign a fresh id so we never collide with an existing rundown
+  const parsed = parseRundown({ ...incomingRundown, id: generateId() }, mergedCustomFields);
+  parsed.revision = 0;
+
+  // commit the custom fields only after the rundown has been validated
+  await dataProvider.mergeIntoData({ customFields: parsedCustomFields });
+  await dataProvider.setRundown(parsed.id, parsed);
 
   setImmediate(() => {
     sendRefetch(RefetchKey.ProjectRundowns);

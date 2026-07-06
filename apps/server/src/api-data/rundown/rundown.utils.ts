@@ -225,6 +225,43 @@ export function getUniqueId(rundown: Rundown): EntryId {
   return id;
 }
 
+/**
+ * Merges an imported rundown into an existing one using a "sheet leads" strategy:
+ * - the incoming rundown is authoritative for element identity and order
+ * - elements matched by id are updated from the incoming data, but fields the spreadsheet
+ *   cannot express (triggers/automations and timeStrategy) are preserved from the existing event
+ * - existing elements not present in the incoming rundown are dropped
+ *
+ * The result is expected to be run through `parseRundown` afterwards to recompute derived data;
+ * `createEvent` preserves the `triggers` and `timeStrategy` we set here.
+ */
+export function mergeRundownPreservingFields(incoming: Readonly<Rundown>, existing: Readonly<Rundown>): Rundown {
+  const entries: Rundown['entries'] = {};
+
+  for (const [id, entry] of Object.entries(incoming.entries)) {
+    const existingEntry = existing.entries[id];
+    // only events carry data the spreadsheet cannot express; match by id and type
+    if (isOntimeEvent(entry) && existingEntry !== undefined && isOntimeEvent(existingEntry)) {
+      entries[id] = {
+        ...entry,
+        triggers: structuredClone(existingEntry.triggers),
+        timeStrategy: existingEntry.timeStrategy,
+      };
+    } else {
+      entries[id] = entry;
+    }
+  }
+
+  return {
+    id: existing.id,
+    title: existing.title,
+    order: [...incoming.order],
+    flatOrder: [...incoming.flatOrder],
+    revision: existing.revision + 1,
+    entries,
+  };
+}
+
 /** List of event properties which do not need the rundown to be regenerated */
 enum RegenerateWhitelist {
   'id', // adding it for completeness, users cannot change ID
