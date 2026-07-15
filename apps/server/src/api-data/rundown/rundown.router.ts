@@ -20,6 +20,7 @@ import {
   applyDelay,
   batchEditEntries,
   cloneEntry,
+  applyImportToRundown,
   createNewRundown,
   createRundownFromImport,
   deleteAllEntries,
@@ -29,7 +30,6 @@ import {
   editEntry,
   groupEntries,
   loadRundown,
-  mergeRundownFromImport,
   renameRundown,
   renumberEntries,
   reorderEntry,
@@ -159,8 +159,7 @@ router.delete('/:id', paramsWithId, async (req: Request, res: Response<ProjectRu
 });
 
 /**
- * Applies an imported rundown using a merge strategy or into a new rundown.
- * The 'override' strategy is not handled here, it uses the generic PATCH /db endpoint.
+ * Applies an imported rundown: override or merge into an existing rundown, or create a new one.
  */
 router.post(
   '/import',
@@ -169,14 +168,14 @@ router.post(
     try {
       const { mode, targetRundownId, rundown, customFields } = matchedData<RundownImportPayload>(req);
       let projectRundowns: ProjectRundowns;
-      if (mode === 'merge') {
-        // the validator guarantees this for merge, the guard narrows the type and adds defence in depth
-        if (!targetRundownId) {
-          throw new Error('targetRundownId is required when mode is merge');
-        }
-        projectRundowns = await mergeRundownFromImport(targetRundownId, rundown, customFields);
-      } else {
+      if (mode === 'new') {
         projectRundowns = await createRundownFromImport(rundown, customFields);
+      } else {
+        // the validator guarantees this for override/merge, the guard narrows the type and adds defence in depth
+        if (!targetRundownId) {
+          throw new Error('targetRundownId is required when mode is override or merge');
+        }
+        projectRundowns = await applyImportToRundown(mode, targetRundownId, rundown, customFields);
       }
       res.status(200).json({ loaded: getCurrentRundown().id, rundowns: normalisedToRundownArray(projectRundowns) });
     } catch (error) {

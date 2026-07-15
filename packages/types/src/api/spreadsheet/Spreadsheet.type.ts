@@ -36,11 +36,12 @@ export type RundownImportMergeStrategy = 'override' | 'merge';
 
 /**
  * Payload for the rundown import endpoint
- * Note: the 'override' strategy does not use this endpoint, it goes through the generic PATCH /db
+ * - override / merge apply the import onto the target rundown (targetRundownId required)
+ * - new creates a fresh rundown from the import
  */
 export type RundownImportPayload = {
-  mode: 'merge' | 'new';
-  /** required when mode === 'merge' */
+  mode: RundownImportMergeStrategy | 'new';
+  /** required when mode is 'override' or 'merge' */
   targetRundownId?: string;
   rundown: Rundown;
   customFields: CustomFields;

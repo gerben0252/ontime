@@ -1,4 +1,4 @@
-import type { RundownImportDestination, RundownImportMergeStrategy, SpreadsheetPreviewResponse } from 'ontime-types';
+import type { RundownImportDestination, SpreadsheetPreviewResponse } from 'ontime-types';
 import { isOntimeEvent, isPlayableEvent, Playback } from 'ontime-types';
 import { useEffect, useState } from 'react';
 
@@ -8,7 +8,6 @@ import { usePlayback, useSelectedEventId } from '../../../../../../common/hooks/
 interface ApplyImportButtonProps {
   preview: SpreadsheetPreviewResponse | null;
   destination: RundownImportDestination;
-  strategy: RundownImportMergeStrategy;
   disabled: boolean;
   loading: boolean;
   onApply: () => void;
@@ -22,7 +21,6 @@ interface ApplyImportButtonProps {
 export default function ApplyImportButton({
   preview,
   destination,
-  strategy,
   disabled,
   loading,
   onApply,
@@ -30,7 +28,7 @@ export default function ApplyImportButton({
   const playback = usePlayback();
   const loadedEventId = useSelectedEventId();
 
-  // the loaded (playing) event loses its playback unless it survives a merge as a playable event
+  // the loaded (playing) event loses its playback unless it still exists as a playable event after the import
   const loadedEntry = loadedEventId ? preview?.rundown.entries[loadedEventId] : undefined;
   const willLoadedEventBeOverriden = !(
     loadedEntry !== undefined &&
@@ -38,15 +36,14 @@ export default function ApplyImportButton({
     isPlayableEvent(loadedEntry)
   );
 
-  // applying stops playback when creating/replacing a rundown, or when a merge drops the playing event
-  const willStopPlayback =
-    playback !== Playback.Stop && (destination === 'new' || strategy === 'override' || willLoadedEventBeOverriden);
+  // applying stops playback when creating a new rundown, or when the playing event does not survive
+  const willStopPlayback = playback !== Playback.Stop && (destination === 'new' || willLoadedEventBeOverriden);
 
   // two-step confirmation before applying an import that stops playback
   const [confirmStop, setConfirmStop] = useState(false);
   useEffect(() => {
     setConfirmStop(false);
-  }, [destination, strategy, preview]);
+  }, [destination, preview]);
 
   const handleClick = () => {
     if (willStopPlayback && !confirmStop) {

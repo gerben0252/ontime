@@ -12,6 +12,7 @@ import {
   ProjectRundowns,
   RefetchKey,
   Rundown,
+  RundownImportMergeStrategy,
   isOntimeDelay,
   isOntimeEvent,
   isOntimeGroup,
@@ -771,15 +772,18 @@ export async function duplicateExistingRundown(id: string) {
 }
 
 /**
- * Applies an imported rundown into an existing rundown using the "merge" strategy:
- * elements matched by id preserve fields the spreadsheet cannot express (triggers/automations,
- * timeStrategy); the incoming rundown is otherwise authoritative for identity and order.
+ * Applies an imported rundown onto an existing rundown, keeping the existing identity while
+ * taking structure and order from the incoming data.
+ * - 'override' replaces all content with the incoming data
+ * - 'merge' additionally keeps fields the spreadsheet cannot express (automations, time strategy)
+ *   on entries matched by id
  *
- * If the target is the loaded rundown and the currently playing event survives the merge,
- * playback is preserved (hot reload) instead of being stopped.
+ * When targeting the loaded rundown this is treated as a change, not a switch, so playback is
+ * maintained when the playing event survives.
  * @throws if the target rundown does not exist
  */
-export async function mergeRundownFromImport(
+export async function applyImportToRundown(
+  strategy: RundownImportMergeStrategy,
   targetRundownId: string,
   incomingRundown: Rundown,
   incomingCustomFields: CustomFields,
@@ -788,21 +792,24 @@ export async function mergeRundownFromImport(
   // throws if the rundown was deleted between preview and apply
   const existing = dataProvider.getRundown(targetRundownId);
 
-  // Build and validate the merged rundown BEFORE mutating any shared state, so a bad
+  // Build and validate the resulting rundown BEFORE mutating any shared state, so a bad
   // payload cannot leave a partial custom-field change behind. Entry custom-field validation
   // only needs the resulting set of keys, which is the union of existing and incoming.
   const parsedCustomFields = parseCustomFields({ customFields: incomingCustomFields });
   const mergedCustomFields = { ...dataProvider.getCustomFields(), ...parsedCustomFields };
-  const merged = mergeRundownPreservingFields(incomingRundown, existing);
+  const source =
+    strategy === 'merge'
+      ? mergeRundownPreservingFields(incomingRundown, existing)
+      : { ...incomingRundown, id: existing.id, title: existing.title, revision: existing.revision + 1 };
   // re-validate the client supplied payload; createEvent preserves the fields set by the merge
-  const parsed = parseRundown(merged, mergedCustomFields);
+  const parsed = parseRundown(source, mergedCustomFields);
 
   // commit the custom fields only after the rundown has been validated
   await dataProvider.mergeIntoData({ customFields: parsedCustomFields });
   const projectCustomFields = dataProvider.getCustomFields();
 
   if (isCurrentRundown(targetRundownId)) {
-    // merging into the loaded rundown is a change, not a switch: maintain playback when possible
+    // applying to the loaded rundown is a change, not a switch: maintain playback when possible
     applyChangeToCurrentRundown(parsed, projectCustomFields);
   } else {
     await dataProvider.setRundown(parsed.id, parsed);

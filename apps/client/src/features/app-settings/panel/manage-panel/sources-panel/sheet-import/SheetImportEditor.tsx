@@ -186,7 +186,6 @@ export default function SheetImportEditor({
           <ApplyImportButton
             preview={state.preview}
             destination={importOptions.destination}
-            strategy={importOptions.strategy}
             disabled={!state.preview || isBusy}
             loading={state.loading === 'apply'}
             onApply={handleApply}

@@ -57,7 +57,7 @@ export default function SourcesPanel() {
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
 
   const { data: currentRundown } = useRundown();
-  const { importRundown, applyImportWithOptions } = useSpreadsheetImport();
+  const { applyImport } = useSpreadsheetImport();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -136,11 +136,7 @@ export default function SourcesPanel() {
   ) => {
     if (options.destination === 'new') {
       const title = newRundownTitle.trim() || preview.rundown.title;
-      await applyImportWithOptions({
-        mode: 'new',
-        rundown: { ...preview.rundown, title },
-        customFields: preview.customFields,
-      });
+      await applyImport({ mode: 'new', rundown: { ...preview.rundown, title }, customFields: preview.customFields });
       handleFinished();
       return;
     }
@@ -149,28 +145,13 @@ export default function SourcesPanel() {
       throw new Error('No current rundown loaded');
     }
 
-    if (options.strategy === 'merge') {
-      await applyImportWithOptions({
-        mode: 'merge',
-        targetRundownId: currentRundown.id,
-        rundown: preview.rundown,
-        customFields: preview.customFields,
-      });
-      handleFinished();
-      return;
-    }
-
-    // override: replace the current rundown
-    await importRundown(
-      {
-        [currentRundown.id]: {
-          ...preview.rundown,
-          id: currentRundown.id,
-          title: currentRundown.title,
-        },
-      },
-      preview.customFields,
-    );
+    // override or merge into the current rundown
+    await applyImport({
+      mode: options.strategy,
+      targetRundownId: currentRundown.id,
+      rundown: preview.rundown,
+      customFields: preview.customFields,
+    });
     handleFinished();
   };
 

@@ -12,13 +12,13 @@ export const rundownPatchValidator = [
 ];
 
 export const rundownImportValidator = [
-  body('mode').isString().isIn(['merge', 'new']),
+  body('mode').isString().isIn(['override', 'merge', 'new']),
   body('targetRundownId')
-    .if(body('mode').equals('merge'))
+    .if(body('mode').isIn(['override', 'merge']))
     .isString()
     .trim()
     .notEmpty()
-    .withMessage('targetRundownId is required when mode is merge'),
+    .withMessage('targetRundownId is required when mode is override or merge'),
   body('rundown').isObject(),
   body('rundown.entries').isObject(),
   body('rundown.order').isArray(),
