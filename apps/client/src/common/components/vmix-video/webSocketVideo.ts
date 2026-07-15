@@ -7,13 +7,13 @@
  */
 
 /** how often we check the buffer and correct drift */
-const TICK_MS = 250;
-/** latency above target before we gently speed up to catch up */
-const CATCHUP_MARGIN = 0.15;
+const TICK_MS = 100;
+/** latency above target before we gently speed up to catch up, ie. correcting from 250ms */
+const CATCHUP_MARGIN = 0.05;
 /** playback rate used to absorb small amounts of drift without a visible jump */
-const CATCHUP_RATE = 1.1;
+const CATCHUP_RATE = 1.15;
 /** latency above target beyond which a smooth catch up would take too long, so we seek instead */
-const HARD_RESYNC_LATENCY = 1.5;
+const HARD_RESYNC_LATENCY = 0.2;
 /** seconds of already played video to keep buffered */
 const KEEP_BEHIND = 4;
 /** only evict once there is meaningfully more than KEEP_BEHIND to reclaim */
