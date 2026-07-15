@@ -15,7 +15,6 @@ import {
   isOntimeDelay,
   isOntimeEvent,
   isOntimeGroup,
-  isPlayableEvent,
 } from 'ontime-types';
 import { customFieldLabelToKey, generateId, getInsertAfterId, resolveInsertParent } from 'ontime-utils';
 
@@ -37,7 +36,13 @@ import {
 } from './rundown.dao.js';
 import { parseRundown } from './rundown.parser.js';
 import type { RundownMetadata } from './rundown.types.js';
-import { generateEvent, getIntegerAndFraction, hasChanges, mergeRundownPreservingFields } from './rundown.utils.js';
+import {
+  generateEvent,
+  getIntegerAndFraction,
+  hasChanges,
+  mergeRundownPreservingFields,
+  willPlaybackSurvive,
+} from './rundown.utils.js';
 
 /**
  * creates a new entry with given data
@@ -659,20 +664,15 @@ export async function loadRundown(id: string) {
 }
 
 /**
- * Sets a new rundown in the cache
- * and marks it as the currently loaded one
+ * Sets a new rundown in the cache and marks it as the currently loaded one.
+ * Switching to a rundown always stops playback.
  */
 export async function initRundown(
   rundown: Readonly<Rundown>,
   customFields: Readonly<CustomFields>,
   reload: boolean = false,
-  options?: { skipPlaybackStop?: boolean },
 ) {
-  // by default switching rundowns stops playback
-  // callers preserving playback (e.g. a merge import that keeps the playing event) can opt out
-  if (!options?.skipPlaybackStop) {
-    runtimeService.stop();
-  }
+  runtimeService.stop();
   const { rundownMetadata, revision } = rundownCache.init(rundown, customFields);
   logger.info(LogOrigin.Server, `Switch to rundown: ${rundown.id}`);
   // notify runtime that rundown has changed
@@ -684,6 +684,25 @@ export async function initRundown(
     setLastLoadedRundown(rundown.id).catch((error) => {
       logger.error(LogOrigin.Server, `Failed to persist last loaded rundown: ${error}`);
     });
+  });
+}
+
+/**
+ * Applies a rebuilt version of the currently loaded rundown in place.
+ * Unlike switching rundowns, this maintains playback when possible: it only stops
+ * when the playing event no longer survives, otherwise the running timer is hot-reloaded.
+ */
+function applyChangeToCurrentRundown(rundown: Readonly<Rundown>, customFields: Readonly<CustomFields>) {
+  if (!willPlaybackSurvive(runtimeService.getLoadedEventId(), rundown)) {
+    runtimeService.stop();
+  }
+  const { rundownMetadata, revision } = rundownCache.init(rundown, customFields);
+  updateRuntimeOnChange(rundownMetadata);
+
+  setImmediate(() => {
+    // notifying the timer hot-reloads the playing event by id, preserving playback when it survives
+    notifyChanges(rundown.id, rundownMetadata, revision, { timer: true, external: true, reload: true });
+    sendRefetch(RefetchKey.ProjectRundowns);
   });
 }
 
@@ -783,11 +802,8 @@ export async function mergeRundownFromImport(
   const projectCustomFields = dataProvider.getCustomFields();
 
   if (isCurrentRundown(targetRundownId)) {
-    // preserve playback when the loaded event survives the merge and is still playable
-    const loadedId = runtimeService.getLoadedEventId();
-    const survivingEntry = loadedId ? parsed.entries[loadedId] : undefined;
-    const survives = survivingEntry !== undefined && isOntimeEvent(survivingEntry) && isPlayableEvent(survivingEntry);
-    await initRundown(parsed, projectCustomFields, true, { skipPlaybackStop: survives });
+    // merging into the loaded rundown is a change, not a switch: maintain playback when possible
+    applyChangeToCurrentRundown(parsed, projectCustomFields);
   } else {
     await dataProvider.setRundown(parsed.id, parsed);
     setImmediate(() => {

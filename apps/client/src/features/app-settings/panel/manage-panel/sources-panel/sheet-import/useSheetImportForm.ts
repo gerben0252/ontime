@@ -176,7 +176,6 @@ export function useSheetImportForm({
 
   const [state, dispatch] = useReducer(importReducer, initialImportState);
   const [importOptions, setImportOptions] = useState<ImportOptions>(() => getPersistedImportOptions(sourceKey));
-  // ephemeral, per-import name for the "new rundown" destination, prefilled with the spreadsheet name
   const [newRundownTitle, setNewRundownTitle] = useState(defaultRundownName);
   const warnings = getImportWarnings(values, headers);
   const warningCount = Object.values(warnings).filter(Boolean).length;
@@ -190,7 +189,7 @@ export function useSheetImportForm({
     dispatch({ type: 'reset' });
   }, [initialFormValues, reset]);
 
-  // Rehydrate the import options and prefilled name whenever the source context changes.
+  // Update import options and rundown name if the source changes
   useEffect(() => {
     setImportOptions(getPersistedImportOptions(sourceKey));
     setNewRundownTitle(defaultRundownName);

@@ -4,16 +4,14 @@ import type {
   SpreadsheetPreviewResponse,
   SpreadsheetWorksheetMetadata,
 } from 'ontime-types';
-import { isOntimeEvent, Playback } from 'ontime-types';
 import type { ImportMap } from 'ontime-utils';
-import { useEffect, useState } from 'react';
 import { IoArrowUpOutline, IoEye } from 'react-icons/io5';
 
 import Button from '../../../../../../common/components/buttons/Button';
 import Input from '../../../../../../common/components/input/input/Input';
 import Select from '../../../../../../common/components/select/Select';
-import { usePlayback, useSelectedEventId } from '../../../../../../common/hooks/useSocket';
 import * as Panel from '../../../../panel-utils/PanelUtils';
+import ApplyImportButton from './ApplyImportButton';
 import type { ImportOptions } from './importMapUtils';
 import PreviewTable from './preview/PreviewTable';
 import SheetImportMappingPane from './SheetImportMappingPane';
@@ -79,37 +77,6 @@ export default function SheetImportEditor({
     onExport,
   });
 
-  const playback = usePlayback();
-  const loadedEventId = useSelectedEventId();
-
-  // whether applying with the current options will stop a running playback
-  const isPlaying = playback !== Playback.Stop;
-  const loadedEventSurvivesMerge = (() => {
-    if (!loadedEventId) return false;
-    const entry = state.preview?.rundown.entries[loadedEventId];
-    return entry !== undefined && isOntimeEvent(entry) && !entry.skip;
-  })();
-  const willStopPlayback =
-    isPlaying &&
-    // importing into a new rundown loads it, which stops playback
-    (importOptions.destination === 'new' ||
-      (importOptions.destination === 'current' &&
-        (importOptions.strategy === 'override' || !loadedEventSurvivesMerge)));
-
-  // two-step confirmation before applying an import that stops playback
-  const [confirmStop, setConfirmStop] = useState(false);
-  useEffect(() => {
-    setConfirmStop(false);
-  }, [importOptions.destination, importOptions.strategy, state.preview]);
-
-  const onApplyClick = () => {
-    if (willStopPlayback && !confirmStop) {
-      setConfirmStop(true);
-      return;
-    }
-    handleApply();
-  };
-
   return (
     <Panel.Section as='form' id='spreadsheet-import-workspace' className={style.editor} onSubmit={handlePreviewSubmit}>
       <Panel.InlineElements align='apart' wrap='wrap' className={style.editorToolbar}>
@@ -155,9 +122,6 @@ export default function SheetImportEditor({
       </div>
 
       {displayError && <Panel.Error>{displayError}</Panel.Error>}
-      {willStopPlayback && confirmStop && (
-        <Panel.Error>Playback is running and will be stopped. Click apply again to confirm.</Panel.Error>
-      )}
       <Panel.InlineElements align='apart' wrap='wrap' className={style.editorFooter}>
         <Panel.InlineElements wrap='wrap'>
           <label className={style.worksheetControl}>
@@ -219,14 +183,14 @@ export default function SheetImportEditor({
             <IoEye />
             Preview import
           </Button>
-          <Button
-            variant='primary'
-            onClick={onApplyClick}
+          <ApplyImportButton
+            preview={state.preview}
+            destination={importOptions.destination}
+            strategy={importOptions.strategy}
             disabled={!state.preview || isBusy}
             loading={state.loading === 'apply'}
-          >
-            {willStopPlayback && confirmStop ? 'Confirm — stop playback & apply import' : 'Apply import'}
-          </Button>
+            onApply={handleApply}
+          />
         </Panel.InlineElements>
       </Panel.InlineElements>
     </Panel.Section>

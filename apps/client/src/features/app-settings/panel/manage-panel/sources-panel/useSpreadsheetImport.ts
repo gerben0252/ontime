@@ -9,7 +9,7 @@ import { importRundownWithOptions } from '../../../../../common/api/rundown';
 export default function useSpreadsheetImport() {
   const queryClient = useQueryClient();
 
-  /** applies rundown and customFields to current project (override strategy) */
+  /** overrides rundown and customFields in current project */
   const importRundown = useCallback(
     async (rundowns: ProjectRundowns, customFields: CustomFields) => {
       await patchData({ rundowns, customFields });
@@ -25,18 +25,18 @@ export default function useSpreadsheetImport() {
     [queryClient],
   );
 
-  /** applies an import using a merge strategy or into a new rundown */
+  /** merges an import into the current rundown or creates a new one */
   const applyImportWithOptions = useCallback(
     async (payload: RundownImportPayload) => {
-      await importRundownWithOptions(payload);
+      const response = await importRundownWithOptions(payload);
+      // use the returned project rundowns to populate the cache instead of refetching
+      queryClient.setQueryData(PROJECT_RUNDOWNS, response.data);
+      // the loaded rundown and custom fields still need a refetch to get their normalised shape
       await queryClient.invalidateQueries({
         queryKey: RUNDOWN,
       });
       await queryClient.invalidateQueries({
         queryKey: CUSTOM_FIELDS,
-      });
-      await queryClient.invalidateQueries({
-        queryKey: PROJECT_RUNDOWNS,
       });
     },
     [queryClient],

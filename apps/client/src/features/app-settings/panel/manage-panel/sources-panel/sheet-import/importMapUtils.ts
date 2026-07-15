@@ -160,6 +160,7 @@ export type ImportOptions = {
   strategy: RundownImportMergeStrategy;
 };
 
+/** Default import options: apply into the current rundown, replacing matched elements */
 export function createDefaultImportOptions(): ImportOptions {
   return { destination: 'current', strategy: 'override' };
 }
@@ -168,10 +169,14 @@ function getImportOptionsKey(sourceKey: string) {
   return makeStageKey(`import-options:${sourceKey}`);
 }
 
+/** Persists the import options for a given source */
 export function persistImportOptions(sourceKey: string, options: ImportOptions) {
   localStorage.setItem(getImportOptionsKey(sourceKey), JSON.stringify(options));
 }
 
+/**
+ * Checks whether a given value represents a well formed import options object
+ */
 function isPersistedImportOptions(obj: unknown): obj is ImportOptions {
   if (typeof obj !== 'object' || obj === null) {
     return false;
@@ -184,15 +189,16 @@ function isPersistedImportOptions(obj: unknown): obj is ImportOptions {
   );
 }
 
+/** Reads the persisted import options for a source, falling back to the defaults when absent or invalid */
 export function getPersistedImportOptions(sourceKey: string): ImportOptions {
   const storageKey = getImportOptionsKey(sourceKey);
   try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) {
+    const persistedData = localStorage.getItem(storageKey);
+    if (!persistedData) {
       return createDefaultImportOptions();
     }
 
-    const parsed: unknown = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(persistedData);
     if (isPersistedImportOptions(parsed)) {
       return parsed;
     }

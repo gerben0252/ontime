@@ -17,6 +17,7 @@ import {
   isOntimeEvent,
   isOntimeGroup,
   isOntimeMilestone,
+  isPlayableEvent,
 } from 'ontime-types';
 import {
   createDelay,
@@ -260,6 +261,19 @@ export function mergeRundownPreservingFields(incoming: Readonly<Rundown>, existi
     revision: existing.revision + 1,
     entries,
   };
+}
+
+/**
+ * Whether the currently playing event survives a change to its rundown,
+ * i.e. it still exists and is playable in the new version.
+ * Used to decide whether playback can be maintained across a rundown change.
+ */
+export function willPlaybackSurvive(loadedEventId: EntryId | null, rundown: Readonly<Rundown>): boolean {
+  if (loadedEventId === null) {
+    return false;
+  }
+  const entry = rundown.entries[loadedEventId];
+  return entry !== undefined && isOntimeEvent(entry) && isPlayableEvent(entry);
 }
 
 /** List of event properties which do not need the rundown to be regenerated */

@@ -22,7 +22,7 @@ import Info from '../../../../../common/components/info/Info';
 import ExternalLink from '../../../../../common/components/link/external-link/ExternalLink';
 import Modal from '../../../../../common/components/modal/Modal';
 import useRundown from '../../../../../common/hooks-query/useRundown';
-import { validateExcelImport } from '../../../../../common/utils/uploadUtils';
+import { removeFileExtension, validateExcelImport } from '../../../../../common/utils/uploadUtils';
 import * as Panel from '../../../panel-utils/PanelUtils';
 import GSheetSetup from './GSheetSetup';
 import type { ImportOptions } from './sheet-import/importMapUtils';
@@ -160,7 +160,7 @@ export default function SourcesPanel() {
       return;
     }
 
-    // override: replace the current rundown wholesale (unchanged legacy behaviour)
+    // override: replace the current rundown
     await importRundown(
       {
         [currentRundown.id]: {
@@ -242,7 +242,7 @@ export default function SourcesPanel() {
   // for Excel, or the document title for Google Sheets
   const spreadsheetName = (() => {
     if (!activeSource) return '';
-    if (activeSource.kind === 'excel') return activeSource.fileName.replace(/\.[^./\\]+$/, '');
+    if (activeSource.kind === 'excel') return removeFileExtension(activeSource.fileName);
     return activeSource.title;
   })();
 
