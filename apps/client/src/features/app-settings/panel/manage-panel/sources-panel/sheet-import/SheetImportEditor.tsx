@@ -91,8 +91,10 @@ export default function SheetImportEditor({
   })();
   const willStopPlayback =
     isPlaying &&
-    importOptions.destination === 'current' &&
-    (importOptions.strategy === 'override' || !loadedEventSurvivesMerge);
+    // importing into a new rundown loads it, which stops playback
+    (importOptions.destination === 'new' ||
+      (importOptions.destination === 'current' &&
+        (importOptions.strategy === 'override' || !loadedEventSurvivesMerge)));
 
   // two-step confirmation before applying an import that stops playback
   const [confirmStop, setConfirmStop] = useState(false);

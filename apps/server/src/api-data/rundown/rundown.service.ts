@@ -799,8 +799,9 @@ export async function mergeRundownFromImport(
 }
 
 /**
- * Creates a new rundown from an imported rundown.
- * Does not touch the loaded rundown or playback.
+ * Creates a new rundown from an imported rundown and loads it,
+ * so the user immediately sees the imported data.
+ * Loading a rundown stops playback (as with any rundown switch).
  */
 export async function createRundownFromImport(
   incomingRundown: Rundown,
@@ -820,11 +821,9 @@ export async function createRundownFromImport(
 
   // commit the custom fields only after the rundown has been validated
   await dataProvider.mergeIntoData({ customFields: parsedCustomFields });
-  await dataProvider.setRundown(parsed.id, parsed);
 
-  setImmediate(() => {
-    sendRefetch(RefetchKey.ProjectRundowns);
-  });
+  // initRundown persists the new rundown, makes it the loaded rundown and notifies clients
+  await initRundown(parsed, dataProvider.getCustomFields(), true);
 
   return dataProvider.getProjectRundowns();
 }
