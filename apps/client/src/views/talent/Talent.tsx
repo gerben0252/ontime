@@ -50,7 +50,7 @@ export default function TalentLoader() {
   return <Talent {...data} />;
 }
 
-function Talent({ entries, isMirrored, settings }: TalentData) {
+function Talent({ entries, flatOrder, isMirrored, settings }: TalentData) {
   const { timeformat, talentPrefix, scoreboardUrl, vmixHost, vmixInput, vmixAuth } = useTalentOptions();
   const { eventNow, groupNow, time, clock, currentDay, actualGroupStart, groupExpectedEnd, offsetMode } =
     useTalentSocket();
@@ -68,18 +68,19 @@ function Talent({ entries, isMirrored, settings }: TalentData) {
   const defaultFormat = getDefaultFormat(settings?.timeFormat);
   const talentOptions = useMemo(() => getTalentOptions(defaultFormat), [defaultFormat]);
 
-  // ordered events of the current group
-  const groupEvents = useMemo(() => {
-    if (!groupNow) return [];
-    return groupNow.entries
+  // every event in rundown order. Segments never span a group, so NOW and the segment timer
+  // stay scoped to the current group, but NEXT can still find a talent event in a later group
+  // (eg. while a non-talent event outside any group is running)
+  const allEvents = useMemo(() => {
+    return flatOrder
       .map((id) => entries[id])
       .filter((entry): entry is OntimeEvent => entry?.type === SupportedEntry.Event);
-  }, [groupNow, entries]);
+  }, [flatOrder, entries]);
 
-  const segments = useMemo(() => buildTalentSegments(groupEvents, talentPrefix), [groupEvents, talentPrefix]);
+  const segments = useMemo(() => buildTalentSegments(allEvents, talentPrefix), [allEvents, talentPrefix]);
   const { now: nowSegment, next: nextSegment } = useMemo(
-    () => selectTalentSegments(segments, groupEvents, eventNow?.id ?? null),
-    [segments, groupEvents, eventNow?.id],
+    () => selectTalentSegments(segments, allEvents, eventNow?.id ?? null),
+    [segments, allEvents, eventNow?.id],
   );
 
   const isRunning = isPlaybackActive(time.playback) && time.phase !== TimerPhase.Pending;

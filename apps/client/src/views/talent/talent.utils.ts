@@ -62,6 +62,10 @@ function normEnd(event: OntimeEvent): number {
  * following events as long as we can reach another talent event with the same
  * title T across only non-talent events (the interrupting batch). A talent event
  * with a different title starts a new segment.
+ *
+ * Pass the whole (flat) rundown: a segment never spans a group boundary, so NOW and
+ * the segment timer stay scoped to the current group, while the resulting segment list
+ * still covers the full rundown so NEXT can look into a following group.
  */
 export function buildTalentSegments(events: OntimeEvent[], prefix: string): TalentSegment[] {
   const segments: TalentSegment[] = [];
@@ -75,6 +79,7 @@ export function buildTalentSegments(events: OntimeEvent[], prefix: string): Tale
     }
 
     const title = stripTalentPrefix(event.title, prefix);
+    const parent = event.parent;
     const memberIds: EntryId[] = [event.id];
     let endIndex = i;
     let timeEnd = normEnd(event);
@@ -84,6 +89,8 @@ export function buildTalentSegments(events: OntimeEvent[], prefix: string): Tale
     let j = i + 1;
     while (j < events.length) {
       const candidate = events[j];
+      // a group boundary always ends the segment: clones are never merged across groups
+      if (candidate.parent !== parent) break;
       if (isTalentEvent(candidate, prefix)) {
         if (stripTalentPrefix(candidate.title, prefix) === title) {
           // clone confirmed: absorb the interrupting batch and the clone itself

@@ -12,6 +12,7 @@ function makeEvent(patch: Partial<OntimeEvent> & { id: string; title: string }):
     timeStart: 0,
     duration: 0,
     dayOffset: 0,
+    parent: null,
     ...patch,
   } as OntimeEvent;
 }
@@ -78,6 +79,28 @@ describe('buildTalentSegments', () => {
     expect(segments[0].memberIds).toEqual(['a']);
   });
 
+  it('does not merge same-title clones across a group boundary', () => {
+    const events = [
+      makeEvent({ id: 'a', title: 'TALENT - Analyse', parent: 'group1', timeStart: 0, duration: 60_000 }),
+      makeEvent({ id: 'b', title: 'TALENT - Analyse', parent: 'group2', timeStart: 60_000, duration: 60_000 }),
+    ];
+    const segments = buildTalentSegments(events, PREFIX);
+    expect(segments).toHaveLength(2);
+    expect(segments[0].memberIds).toEqual(['a']);
+    expect(segments[1].memberIds).toEqual(['b']);
+  });
+
+  it('does not absorb a non-talent batch that sits outside the group', () => {
+    const events = [
+      makeEvent({ id: 'a', title: 'TALENT - Opener', parent: 'group1', timeStart: 0, duration: 60_000 }),
+      makeEvent({ id: 'ads', title: 'Commercials', parent: null, timeStart: 60_000, duration: 10_000 }),
+      makeEvent({ id: 'b', title: 'TALENT - Opener', parent: 'group2', timeStart: 70_000, duration: 60_000 }),
+    ];
+    const segments = buildTalentSegments(events, PREFIX);
+    expect(segments).toHaveLength(2);
+    expect(segments[0].memberIds).toEqual(['a']);
+  });
+
   it('applies the day offset to the normalised times', () => {
     const events = [makeEvent({ id: 'a', title: 'TALENT - Late', timeStart: 0, duration: 60_000, dayOffset: 1 })];
     const segments = buildTalentSegments(events, PREFIX);
@@ -111,6 +134,37 @@ describe('selectTalentSegments', () => {
     const { now, next } = selectTalentSegments(segments, events, 'b');
     expect(now?.title).toBe('Interview');
     expect(next?.title).toBe('Weather');
+  });
+
+  it('shows the next talent event when sitting on a non-talent event outside any group', () => {
+    // mirrors the real rundown: a group of talent events, loose non-talent events, then a new group
+    const rundown = [
+      makeEvent({ id: 'opener', title: 'TALENT - Opener', parent: 'voorprogramma', timeStart: 0, duration: 60_000 }),
+      makeEvent({ id: 'ads', title: 'Commercials', parent: null, timeStart: 60_000, duration: 10_000 }),
+      makeEvent({ id: 'speaker', title: 'Zaalspeaker', parent: null, timeStart: 70_000, duration: 10_000 }),
+      makeEvent({ id: 'half', title: 'Eerste helft', parent: null, timeStart: 80_000, duration: 10_000 }),
+      makeEvent({ id: 'analyse', title: 'TALENT - Analyse eerste helft', parent: 'rust', timeStart: 90_000, duration: 60_000 }),
+    ];
+    const rundownSegments = buildTalentSegments(rundown, PREFIX);
+
+    // on each loose non-talent event, the upcoming talent event must surface as NEXT
+    for (const id of ['ads', 'speaker', 'half']) {
+      const { now, next } = selectTalentSegments(rundownSegments, rundown, id);
+      expect(now).toBeNull();
+      expect(next?.title).toBe('Analyse eerste helft');
+    }
+  });
+
+  it('looks into a following group for next while on a talent event', () => {
+    const rundown = [
+      makeEvent({ id: 'opener', title: 'TALENT - Opener', parent: 'voorprogramma', timeStart: 0, duration: 60_000 }),
+      makeEvent({ id: 'ads', title: 'Commercials', parent: null, timeStart: 60_000, duration: 10_000 }),
+      makeEvent({ id: 'analyse', title: 'TALENT - Analyse', parent: 'rust', timeStart: 70_000, duration: 60_000 }),
+    ];
+    const rundownSegments = buildTalentSegments(rundown, PREFIX);
+    const { now, next } = selectTalentSegments(rundownSegments, rundown, 'opener');
+    expect(now?.title).toBe('Opener');
+    expect(next?.title).toBe('Analyse');
   });
 
   it('falls back to the upcoming segment for an orphan selection', () => {

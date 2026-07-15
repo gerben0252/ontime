@@ -1,4 +1,4 @@
-import { RundownEntries, Settings, ViewSettings } from 'ontime-types';
+import { EntryId, RundownEntries, Settings, ViewSettings } from 'ontime-types';
 
 import useRundown from '../../common/hooks-query/useRundown';
 import useSettings from '../../common/hooks-query/useSettings';
@@ -8,6 +8,8 @@ import { ViewData, aggregateQueryStatus } from '../utils/viewLoader.utils';
 
 export interface TalentData {
   entries: RundownEntries;
+  /** flattened rundown order, groups unwrapped */
+  flatOrder: EntryId[];
   isMirrored: boolean;
   settings: Settings;
   viewSettings: ViewSettings;
@@ -25,6 +27,7 @@ export function useTalentData(): ViewData<TalentData> {
   return {
     data: {
       entries: rundownData.entries,
+      flatOrder: rundownData.flatOrder,
       isMirrored,
       settings,
       viewSettings,
