@@ -140,7 +140,7 @@
     height: 19px;
   }
 
-  /* ---- program / preview video area ---- */
+  /* ---- live vMix video feed ---- */
   &__video {
     position: absolute;
     top: 219px;
@@ -148,6 +148,8 @@
     width: 1530px;
     height: 861px;
     background: #000000;
+    object-fit: cover;
+    display: block;
   }
 
   /* ---- NOW / NEXT panels ---- */

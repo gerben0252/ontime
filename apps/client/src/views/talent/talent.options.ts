@@ -9,6 +9,7 @@ import { PresetContext } from '../../common/context/PresetContext';
 export const DEFAULT_TALENT_PREFIX = 'TALENT -';
 export const DEFAULT_VMIX_PORT = 8088;
 export const DEFAULT_VMIX_HOST = '10.12.0.71';
+export const DEFAULT_VMIX_AUTH = '3c8aaa1c-6d2a-4673-bd14-6c2a4b5bc485';
 export const DEFAULT_SCOREBOARD_URL = 'http://10.12.0.62/scoreboard/time/formatted';
 
 export const getTalentOptions = (timeFormat: string): ViewOption[] => {
@@ -55,6 +56,14 @@ export const getTalentOptions = (timeFormat: string): ViewOption[] => {
           type: 'string',
           placeholder: '1',
         },
+        {
+          id: 'vmix-auth',
+          title: 'vMix video auth',
+          description: 'Auth token of the vMix video socket used for the live feed',
+          type: 'string',
+          defaultValue: DEFAULT_VMIX_AUTH,
+          placeholder: DEFAULT_VMIX_AUTH,
+        },
       ],
     },
   ];
@@ -65,6 +74,7 @@ export type TalentOptions = {
   scoreboardUrl: string | null;
   vmixHost: string | null;
   vmixInput: string | null;
+  vmixAuth: string | null;
 } & TimeOptions;
 
 function getOptionsFromParams(searchParams: URLSearchParams, defaultValues?: URLSearchParams): TalentOptions {
@@ -75,6 +85,7 @@ function getOptionsFromParams(searchParams: URLSearchParams, defaultValues?: URL
     scoreboardUrl: getValue('scoreboard-url') || DEFAULT_SCOREBOARD_URL,
     vmixHost: getValue('vmix-host') || DEFAULT_VMIX_HOST,
     vmixInput: getValue('vmix-input'),
+    vmixAuth: getValue('vmix-auth') || DEFAULT_VMIX_AUTH,
     timeformat: getTimeOptionsFromParams(searchParams, defaultValues),
   };
 }

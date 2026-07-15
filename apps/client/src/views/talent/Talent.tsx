@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 
 import EmptyPage from '../../common/components/state/EmptyPage';
 import ViewParamsEditor from '../../common/components/view-params-editor/ViewParamsEditor';
+import VmixVideo from '../../common/components/vmix-video/VmixVideo';
 import { useAnimatedProgress } from '../../common/hooks/useAnimatedProgress';
 import { useAutoTickingClock } from '../../common/hooks/useAutoTickingClock';
 import { useTalentSocket } from '../../common/hooks/useSocket';
@@ -50,7 +51,7 @@ export default function TalentLoader() {
 }
 
 function Talent({ entries, isMirrored, settings }: TalentData) {
-  const { timeformat, talentPrefix, scoreboardUrl, vmixHost, vmixInput } = useTalentOptions();
+  const { timeformat, talentPrefix, scoreboardUrl, vmixHost, vmixInput, vmixAuth } = useTalentOptions();
   const { eventNow, groupNow, time, clock, currentDay, actualGroupStart, groupExpectedEnd, offsetMode } =
     useTalentSocket();
 
@@ -89,11 +90,12 @@ function Talent({ entries, isMirrored, settings }: TalentData) {
   // between the running event's end and the segment end. Planned times alone would clamp to 0
   // whenever the show runs behind schedule.
   const eventDuration = nowSegment ? nowSegment.timeEnd - nowSegment.timeStart : null;
+  // goes negative when the segment overruns, same as the viewer
   const eventRemaining = (() => {
     if (!nowSegment || !isRunning || !eventNow || time.current === null) return null;
     const runningEventEnd = eventNow.timeStart + eventNow.duration + eventNow.dayOffset * dayInMs;
     const tail = Math.max(0, nowSegment.timeEnd - runningEventEnd);
-    return Math.max(0, time.current + tail);
+    return time.current + tail;
   })();
 
   // SEGMENT: remaining time of the current group
@@ -192,8 +194,8 @@ function Talent({ entries, isMirrored, settings }: TalentData) {
           {/* vMix live status bar */}
           <div className='talent__live-bar' style={{ background: vmixDisplay.barColor }} />
 
-          {/* program / preview video area */}
-          <div className='talent__video' />
+          {/* live video feed from vMix */}
+          <VmixVideo className='talent__video' host={vmixHost} port={DEFAULT_VMIX_PORT} auth={vmixAuth} />
 
           {/* NOW */}
           <div className='talent__panel talent__now'>
