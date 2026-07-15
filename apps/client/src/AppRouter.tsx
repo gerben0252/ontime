@@ -20,6 +20,7 @@ const Backstage = lazy(() => import('./views/backstage/Backstage'));
 const StudioClock = lazy(() => import('./views/studio/Studio'));
 const Timeline = lazy(() => import('./views/timeline/TimelinePage'));
 const ProjectInfo = lazy(() => import('./views/project-info/ProjectInfo'));
+const Talent = lazy(() => import('./views/talent/Talent'));
 
 const Editor = lazy(() => import('./views/editor/ProtectedEditor'));
 const Cuesheet = lazy(() => import('./views/cuesheet/ProtectedCuesheet'));
@@ -95,6 +96,15 @@ export default function AppRouter() {
             </ViewLoader>
           }
         />
+        <Route
+          path='talent'
+          element={
+            <ViewLoader>
+              <ViewNavigationMenu isNavigationLocked={getIsNavigationLocked()} />
+              <Talent />
+            </ViewLoader>
+          }
+        />
         {/*/!* Protected Routes *!/*/}
         <Route path='editor' element={<Editor />} />
         <Route path='cuesheet' element={<Cuesheet />} />
@@ -165,6 +175,7 @@ const PresetViewMap: Record<OntimeViewPresettable, ComponentType> = {
   [OntimeView.StudioClock]: StudioClock,
   [OntimeView.Countdown]: Countdown,
   [OntimeView.ProjectInfo]: ProjectInfo,
+  [OntimeView.Talent]: Talent,
 };
 
 /**

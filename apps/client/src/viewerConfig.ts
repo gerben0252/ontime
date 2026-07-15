@@ -5,6 +5,7 @@ export const navigatorConstants = [
   { url: 'studio', label: 'Studio Clock' },
   { url: 'countdown', label: 'Countdown' },
   { url: 'info', label: 'Project Info' },
+  { url: 'talent', label: 'Talent' },
 ];
 
 // default time format to use for users in 12 hour clocks

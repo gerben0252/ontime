@@ -1,0 +1,262 @@
+.talent {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #333333;
+  font-family: 'Inter', 'Open Sans', sans-serif;
+
+  &__mirror {
+    width: 100%;
+    height: 100%;
+
+    &--flip {
+      transform: scaleX(-1);
+    }
+  }
+
+  /* fixed 1920x1080 design surface, scaled + centered by inline transform */
+  &__canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1920px;
+    height: 1080px;
+    transform-origin: 0 0;
+    background: #333333;
+  }
+
+  /* ---- top boxes (SEGMENT / vMix / EVENT) ---- */
+  &__box {
+    position: absolute;
+    top: 0;
+    width: 510px;
+    height: 200px;
+    padding: 12px 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: #d9d9d9;
+    outline: 1px solid #bfbfbf;
+    outline-offset: -1px;
+  }
+
+  &__segment {
+    left: 0;
+  }
+  &__vmix {
+    left: 510px;
+  }
+  &__event {
+    left: 1020px;
+  }
+
+  &__box-title {
+    align-self: stretch;
+    height: 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    color: #404040;
+    font-size: 24px;
+    font-weight: 500;
+    text-transform: uppercase;
+    word-wrap: break-word;
+  }
+
+  &__box-time {
+    align-self: stretch;
+    height: 125px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    color: #000000;
+    font-size: 128px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    word-wrap: break-word;
+  }
+
+  /* STANDBY is the only vMix label too wide at full size; shrink it so it fits */
+  &__box-time--small {
+    font-size: 96px;
+  }
+
+  &__box-status {
+    align-self: stretch;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  /* ---- remaining bar ---- */
+  &__bar {
+    position: relative;
+    flex: 1 1 0;
+    height: 20px;
+    background: #bfbfbf;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  /* warning/danger zones, right-aligned on the track */
+  &__bar-zones {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+
+  &__bar-normal {
+    flex: 1;
+  }
+
+  &__bar-warning,
+  &__bar-danger {
+    flex-shrink: 0;
+    height: 100%;
+  }
+
+  /* dark fill for the elapsed portion, drawn on top from the left */
+  &__bar-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: #404040;
+    border-radius: 5px;
+    transition: width 0.1s linear;
+  }
+
+  /* ---- vMix live status bar ---- */
+  &__live-bar {
+    position: absolute;
+    top: 200px;
+    left: 0;
+    width: 1530px;
+    height: 19px;
+  }
+
+  /* ---- program / preview video area ---- */
+  &__video {
+    position: absolute;
+    top: 219px;
+    left: 0;
+    width: 1530px;
+    height: 861px;
+    background: #000000;
+  }
+
+  /* ---- NOW / NEXT panels ---- */
+  &__panel {
+    position: absolute;
+    left: 1530px;
+    width: 390px;
+    padding: 10px 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 28px;
+    overflow: hidden;
+    background: #d9d9d9;
+    outline: 1px solid #bfbfbf;
+    outline-offset: -1px;
+  }
+
+  &__now {
+    top: 0;
+    height: 530px;
+  }
+
+  &__next {
+    top: 530px;
+    height: 230px;
+  }
+
+  &__panel-section {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  &__panel-title {
+    align-self: stretch;
+    height: 29px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    color: #404040;
+    font-size: 24px;
+    font-weight: 500;
+    text-transform: uppercase;
+    word-wrap: break-word;
+  }
+
+  &__panel-value {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    color: #000000;
+    font-size: 64px;
+    font-weight: 600;
+    word-wrap: break-word;
+
+    &--upper {
+      text-transform: uppercase;
+    }
+  }
+
+  &__next-value {
+    font-size: 48px;
+  }
+
+  &__panel-notes {
+    font-size: 48px;
+    white-space: pre-line;
+  }
+
+  /* ---- SCOREBOARD / LOCAL TIME ---- */
+  &__meta {
+    position: absolute;
+    left: 1530px;
+    width: 390px;
+    height: 160px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: #404040;
+    border: 1px solid #333333;
+  }
+
+  &__scoreboard {
+    top: 760px;
+  }
+
+  &__localtime {
+    top: 920px;
+  }
+
+  &__meta-value {
+    text-align: center;
+    color: #f2f2f7;
+    font-size: 64px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  &__meta-label {
+    text-align: center;
+    color: #bfbfbf;
+    font-size: 24px;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+}

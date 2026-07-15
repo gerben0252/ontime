@@ -26,6 +26,7 @@ const targetOptions: SelectOption<OntimeViewPresettable>[] = [
   { value: OntimeView.StudioClock, label: 'Studio Clock' },
   { value: OntimeView.Countdown, label: 'Countdown' },
   { value: OntimeView.ProjectInfo, label: 'Project Info' },
+  { value: OntimeView.Talent, label: 'Talent' },
 ];
 
 const defaultValues: URLPreset = {

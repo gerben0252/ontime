@@ -247,6 +247,17 @@ export const useBackstageSocket = createSelector((state: RuntimeStore) => ({
   time: state.timer,
 }));
 
+export const useTalentSocket = createSelector((state: RuntimeStore) => ({
+  eventNow: state.eventNow,
+  groupNow: state.groupNow,
+  time: state.timer,
+  clock: state.clock,
+  currentDay: state.rundown.currentDay ?? 0,
+  actualGroupStart: state.rundown.actualGroupStart,
+  groupExpectedEnd: state.offset.expectedGroupEnd,
+  offsetMode: state.offset.mode,
+}));
+
 export const useStudioClockSocket = createSelector((state: RuntimeStore) => ({
   clock: state.clock,
   playback: state.timer.playback,
