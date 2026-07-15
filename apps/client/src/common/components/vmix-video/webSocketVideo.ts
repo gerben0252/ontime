@@ -15,7 +15,7 @@ const CATCHUP_RATE = 1.15;
 /** latency above target beyond which a smooth catch up would take too long, so we seek instead */
 const HARD_RESYNC_LATENCY = 0.2;
 /** seconds of already played video to keep buffered */
-const KEEP_BEHIND = 4;
+const KEEP_BEHIND = 2;
 /** only evict once there is meaningfully more than KEEP_BEHIND to reclaim */
 const EVICT_THRESHOLD = 8;
 
