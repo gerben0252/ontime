@@ -1,0 +1,174 @@
+/* Talent desk: an iPad laid flat on the desk, glanced at from above.
+ *
+ * Design follows the editor: near black canvas, slightly lifted panels, quiet
+ * uppercase labels and white numerals. Nothing shouts, everything is legible.
+ *
+ * Hard rule: the whole thing fits one landscape iPad with no page scroll.
+ * The shell is fixed to the viewport and every row is either auto sized or
+ * min-height 0, so overflow is contained inside the panels themselves.
+ */
+.desk {
+  position: fixed;
+  inset: 0;
+  padding: 0.5rem;
+  background: $ui-black;
+  color: $ui-white;
+  -webkit-tap-highlight-color: transparent;
+
+  display: grid;
+  gap: $panel-gap;
+  grid-template-columns: 1fr 1fr minmax(260px, 0.9fr);
+  /* second row absorbs the slack, so short screens shrink the sheets, not the timers */
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    'timeleft thisitem side'
+    'tp       tp       side';
+
+  /* the bar is a light-panel component by default, retheme it for the dark canvas */
+  --remaining-bar-track: #{$gray-800};
+  --remaining-bar-fill: #{$gray-1250};
+  --remaining-bar-height: 8px;
+  --remaining-bar-radius: 2px;
+}
+
+/* ---- timers ---- */
+.desk__timeleft {
+  grid-area: timeleft;
+}
+
+.desk__thisitem {
+  grid-area: thisitem;
+}
+
+.desk__time {
+  color: $ui-white;
+  /* readable at arm's length without dominating the screen */
+  font-size: clamp(3rem, 7vw, 5.5rem);
+  font-weight: 500;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-bottom: 0.375rem;
+}
+
+/* ---- team performance sheets ---- */
+.desk__teamperformance {
+  grid-area: tp;
+}
+
+/* ---- right hand column: notes with the fragments below it ---- */
+.desk__side {
+  grid-area: side;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $panel-gap;
+}
+
+.desk__notes {
+  /* notes take the slack, fragments keep their natural height */
+  flex: 1;
+  min-height: 0;
+}
+
+.desk__fragments {
+  flex-shrink: 0;
+  max-height: 45%;
+}
+
+.desk__notes-edit {
+  min-height: 2rem;
+  padding: 0.125rem 0.75rem;
+  border: none;
+  border-radius: $component-border-radius-md;
+  background: $white-7;
+  color: $gray-300;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color $transition-time-action ease;
+
+  &:active {
+    background: $white-13;
+    color: $ui-white;
+  }
+}
+
+.desk__notes-section {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid $white-7;
+}
+
+.desk__notes-label {
+  color: $gray-600;
+  font-size: calc(1rem - 2px);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.desk__notes-value {
+  color: $gray-200;
+  font-size: clamp(1.125rem, 2vw, 1.75rem);
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: pre-line;
+
+  /* presenter notes are secondary to the event note above them */
+  &--presenter {
+    color: $gray-400;
+    font-size: clamp(1rem, 1.6vw, 1.5rem);
+  }
+}
+
+/* ---- vMix fragment buttons ---- */
+.desk__fragments-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: $panel-gap;
+}
+
+.desk__fragments-empty {
+  padding: 0.5rem 0;
+  color: $gray-700;
+  font-size: 1rem;
+}
+
+.desk__button {
+  /* 44px is the minimum comfortable touch target */
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: $component-border-radius-md;
+  background: $gray-1100;
+  color: $gray-300;
+  font-family: inherit;
+  font-size: 1.125rem;
+  font-weight: 500;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition:
+    background-color $transition-time-action ease,
+    color $transition-time-action ease;
+
+  &:active {
+    background: $gray-1000;
+    color: $ui-white;
+  }
+
+  /* the input this button switches to is currently on program */
+  &--live {
+    background: $active-red;
+    color: $ui-white;
+  }
+
+  /* live, but we have no studio to return to yet */
+  &:disabled {
+    opacity: $opacity-disabled;
+    cursor: default;
+  }
+}

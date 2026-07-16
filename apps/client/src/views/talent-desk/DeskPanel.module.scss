@@ -1,0 +1,42 @@
+.panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: $bg-container-l2;
+  border-radius: $panel-border-radius;
+  overflow: hidden;
+}
+
+.header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem 0.25rem;
+}
+
+.title {
+  color: $gray-500;
+  font-size: 1rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 0.75rem 0.75rem;
+}
+
+.bodyFlush {
+  padding: 0;
+}
+
+/* sheet tabs live here */
+.footer {
+  flex-shrink: 0;
+  border-top: 1px solid $white-7;
+}

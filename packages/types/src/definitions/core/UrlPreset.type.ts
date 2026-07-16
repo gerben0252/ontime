@@ -12,6 +12,7 @@ export enum OntimeView {
   Countdown = 'countdown',
   ProjectInfo = 'info',
   Talent = 'talent',
+  TalentDesk = 'talent-desk',
 }
 
 export type OntimeViewPresettable = Exclude<OntimeView, OntimeView.Editor>;

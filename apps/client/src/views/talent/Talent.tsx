@@ -1,38 +1,24 @@
 import { useViewportSize } from '@mantine/hooks';
-import { MaybeNumber, OffsetMode, OntimeEvent, OntimeView, SupportedEntry, TimerPhase } from 'ontime-types';
-import { dayInMs, isPlaybackActive, millisToString, parseUserTime, removeLeadingZero } from 'ontime-utils';
+import { OntimeView } from 'ontime-types';
 import { useMemo } from 'react';
 
+import RemainingBar from '../../common/components/remaining-bar/RemainingBar';
 import EmptyPage from '../../common/components/state/EmptyPage';
 import ViewParamsEditor from '../../common/components/view-params-editor/ViewParamsEditor';
 import VmixVideo from '../../common/components/vmix-video/VmixVideo';
-import { useAnimatedProgress } from '../../common/hooks/useAnimatedProgress';
+import { useScoreboard } from '../../common/hooks-query/useScoreboard';
+import { useVmixStatus } from '../../common/hooks-query/useVmixStatus';
 import { useAutoTickingClock } from '../../common/hooks/useAutoTickingClock';
-import { useTalentSocket } from '../../common/hooks/useSocket';
 import { useWindowTitle } from '../../common/hooks/useWindowTitle';
-import { useEditorSettings } from '../../common/stores/editorSettings';
 import { timerPlaceholderMin } from '../../common/utils/styleUtils';
 import { formatTime, getDefaultFormat } from '../../common/utils/time';
 import Loader from '../common/loader/Loader';
+import { COLOR_DANGER, COLOR_WARNING, getPhaseColor, getVmixDisplay, toClock } from './talent.presentation';
 import { DEFAULT_VMIX_PORT, getTalentOptions, useTalentOptions } from './talent.options';
-import { buildTalentSegments, isTalentEvent, selectTalentSegments } from './talent.utils';
 import { TalentData, useTalentData } from './useTalentData';
-import { useScoreboard } from './useScoreboard';
-import { useVmixStatus, VmixStatus } from './useVmixStatus';
+import { useTalentState } from './useTalentState';
 
 import './Talent.scss';
-
-const COLOR_LIVE = '#FF383C';
-const COLOR_PREVIEW = '#34C759';
-const COLOR_IDLE = '#8E8E93';
-
-// warning/danger colours for the timer boxes: danger matches the LIVE red, warning a clear orange
-const COLOR_WARNING = '#FF9500';
-const COLOR_DANGER = COLOR_LIVE;
-
-function toClock(value: MaybeNumber): string {
-  return removeLeadingZero(millisToString(value, { fallback: timerPlaceholderMin }));
-}
 
 export default function TalentLoader() {
   const { data, status } = useTalentData();
@@ -52,85 +38,30 @@ export default function TalentLoader() {
 
 function Talent({ entries, flatOrder, isMirrored, settings }: TalentData) {
   const { timeformat, talentPrefix, scoreboardUrl, vmixHost, vmixInput, vmixAuth } = useTalentOptions();
-  const { eventNow, groupNow, time, clock, currentDay, actualGroupStart, groupExpectedEnd, offsetMode } =
-    useTalentSocket();
+
+  const {
+    nowSegment,
+    nextSegment,
+    nowNote,
+    eventRemaining,
+    eventDuration,
+    groupRemaining,
+    groupDuration,
+    warningThreshold,
+    dangerThreshold,
+  } = useTalentState(entries, flatOrder, talentPrefix);
 
   const vmix = useVmixStatus(vmixHost, DEFAULT_VMIX_PORT, vmixInput);
   const scoreboard = useScoreboard(scoreboardUrl);
   const localClock = useAutoTickingClock();
   const { width, height } = useViewportSize();
 
-  // default warning/danger thresholds configured in the Ontime settings
-  const defaultWarnTime = useEditorSettings((state) => state.defaultWarnTime);
-  const defaultDangerTime = useEditorSettings((state) => state.defaultDangerTime);
-
   // view options editor
   const defaultFormat = getDefaultFormat(settings?.timeFormat);
   const talentOptions = useMemo(() => getTalentOptions(defaultFormat), [defaultFormat]);
 
-  // every event in rundown order. Segments never span a group, so NOW and the segment timer
-  // stay scoped to the current group, but NEXT can still find a talent event in a later group
-  // (eg. while a non-talent event outside any group is running)
-  const allEvents = useMemo(() => {
-    return flatOrder
-      .map((id) => entries[id])
-      .filter((entry): entry is OntimeEvent => entry?.type === SupportedEntry.Event);
-  }, [flatOrder, entries]);
-
-  const segments = useMemo(() => buildTalentSegments(allEvents, talentPrefix), [allEvents, talentPrefix]);
-  const { now: nowSegment, next: nextSegment } = useMemo(
-    () => selectTalentSegments(segments, allEvents, eventNow?.id ?? null),
-    [segments, allEvents, eventNow?.id],
-  );
-
-  const isRunning = isPlaybackActive(time.playback) && time.phase !== TimerPhase.Pending;
-  const normalizedClock = clock + currentDay * dayInMs;
-
-  // EVENT: remaining time of the current talent segment (spans interrupting batches / clones)
-  // Derive from the server authoritative running timer (offset aware) plus the scheduled tail
-  // between the running event's end and the segment end. Planned times alone would clamp to 0
-  // whenever the show runs behind schedule.
-  const eventDuration = nowSegment ? nowSegment.timeEnd - nowSegment.timeStart : null;
-  // goes negative when the segment overruns, same as the viewer
-  const eventRemaining = (() => {
-    if (!nowSegment || !isRunning || !eventNow || time.current === null) return null;
-    const runningEventEnd = eventNow.timeStart + eventNow.duration + eventNow.dayOffset * dayInMs;
-    const tail = Math.max(0, nowSegment.timeEnd - runningEventEnd);
-    return time.current + tail;
-  })();
-
-  // SEGMENT: remaining time of the current group
-  const groupDuration = groupNow?.duration ?? null;
-  const groupRemaining = (() => {
-    if (!isRunning || !groupNow || groupNow.timeStart === null) return null;
-    if (groupExpectedEnd !== null) {
-      return Math.max(0, groupExpectedEnd - clock);
-    }
-    if (offsetMode === OffsetMode.Absolute) {
-      return Math.max(0, groupNow.timeStart + groupNow.duration - normalizedClock);
-    }
-    if (actualGroupStart === null) return null;
-    return Math.max(0, actualGroupStart + groupNow.duration - normalizedClock);
-  })();
-
-  // Warning / danger thresholds. Both boxes use the configurable default thresholds from the
-  // Ontime settings (same source that seeds the viewer thresholds), applied against their own
-  // remaining time. Groups carry no native thresholds so this is also the group source.
-  const warningThreshold = parseUserTime(defaultWarnTime);
-  const dangerThreshold = parseUserTime(defaultDangerTime);
-
   const eventPhaseColor = getPhaseColor(eventRemaining, warningThreshold, dangerThreshold);
   const groupPhaseColor = getPhaseColor(groupRemaining, warningThreshold, dangerThreshold);
-
-  // NOW notes: prefer the running talent event, otherwise the original talent event of the segment
-  const nowNote = (() => {
-    if (!nowSegment) return '';
-    if (eventNow && isTalentEvent(eventNow, talentPrefix) && nowSegment.memberIds.includes(eventNow.id)) {
-      return eventNow.note;
-    }
-    const firstMember = entries[nowSegment.memberIds[0]];
-    return firstMember?.type === SupportedEntry.Event ? firstMember.note : '';
-  })();
 
   // canvas scaling: the design is a fixed 1920x1080 surface centered in the viewport
   const scale = Math.min(width / 1920, height / 1080) || 1;
@@ -237,64 +168,4 @@ function Talent({ entries, flatOrder, isMirrored, settings }: TalentData) {
       </div>
     </div>
   );
-}
-
-const clampPct = (value: number) => Math.max(0, Math.min(100, value));
-
-/** Returns the warning/danger colour for a remaining time, or undefined when in the normal phase */
-function getPhaseColor(remaining: MaybeNumber, warning: MaybeNumber, danger: MaybeNumber): string | undefined {
-  if (remaining === null) return undefined;
-  if (danger !== null && remaining <= danger) return COLOR_DANGER;
-  if (warning !== null && remaining <= warning) return COLOR_WARNING;
-  return undefined;
-}
-
-interface RemainingBarProps {
-  current: MaybeNumber;
-  duration: MaybeNumber;
-  warning: MaybeNumber;
-  danger: MaybeNumber;
-  warningColor: string;
-  dangerColor: string;
-}
-
-function RemainingBar({ current, duration, warning, danger, warningColor, dangerColor }: RemainingBarProps) {
-  const progress = useAnimatedProgress(current, duration);
-  const total = duration !== null && duration > 0 ? duration : null;
-  const dangerPct = total !== null && danger !== null ? clampPct((danger / total) * 100) : 0;
-  const warningPct = total !== null && warning !== null ? Math.max(0, clampPct((warning / total) * 100) - dangerPct) : 0;
-
-  return (
-    <div className='talent__bar'>
-      {/* warning/danger zones sit on the not-yet-elapsed (right) side of the track */}
-      <div className='talent__bar-zones'>
-        <div className='talent__bar-normal' />
-        <div className='talent__bar-warning' style={{ width: `${warningPct}%`, backgroundColor: warningColor }} />
-        <div className='talent__bar-danger' style={{ width: `${dangerPct}%`, backgroundColor: dangerColor }} />
-      </div>
-      {/* dark fill covers the elapsed portion from the left */}
-      <div className='talent__bar-fill' style={{ width: `${progress}%` }} />
-    </div>
-  );
-}
-
-interface VmixDisplay {
-  text: string;
-  color: string;
-  barColor: string;
-}
-
-function getVmixDisplay(vmix: VmixStatus): VmixDisplay {
-  switch (vmix.state) {
-    case 'live':
-      return { text: 'LIVE', color: COLOR_LIVE, barColor: COLOR_LIVE };
-    case 'preview': {
-      // exception: while in preview, show the on-air media countdown in green instead of STANDBY
-      const text =
-        vmix.programRemaining !== null && vmix.programRemaining > 0 ? toClock(vmix.programRemaining) : 'STANDBY';
-      return { text, color: COLOR_PREVIEW, barColor: COLOR_PREVIEW };
-    }
-    default:
-      return { text: 'OFF', color: COLOR_IDLE, barColor: '#404040' };
-  }
 }
