@@ -7,6 +7,7 @@ export const navigatorConstants = [
   { url: 'info', label: 'Project Info' },
   { url: 'talent', label: 'Talent' },
   { url: 'talent-desk', label: 'Talent Desk' },
+  { url: 'talent-telestrator', label: 'Talent Telestrator' },
 ];
 
 // default time format to use for users in 12 hour clocks

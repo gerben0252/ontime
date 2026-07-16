@@ -6,10 +6,8 @@ import { OptionTitle } from '../../common/components/view-params-editor/constant
 import { ViewOption } from '../../common/components/view-params-editor/viewParams.types';
 import { PresetContext } from '../../common/context/PresetContext';
 
-export const DEFAULT_TALENT_PREFIX = 'TALENT -';
 export const DEFAULT_VMIX_PORT = 8088;
 export const DEFAULT_VMIX_HOST = '10.12.0.71';
-export const DEFAULT_VMIX_AUTH = '3c8aaa1c-6d2a-4673-bd14-6c2a4b5bc485';
 export const DEFAULT_SCOREBOARD_URL = 'http://10.12.0.62/scoreboard/time/formatted';
 
 export const getTalentOptions = (timeFormat: string): ViewOption[] => {
@@ -19,14 +17,6 @@ export const getTalentOptions = (timeFormat: string): ViewOption[] => {
       title: OptionTitle.DataSources,
       collapsible: true,
       options: [
-        {
-          id: 'talent-prefix',
-          title: 'Talent prefix',
-          description: 'Only events whose title starts with this prefix are shown as talent events',
-          type: 'string',
-          defaultValue: DEFAULT_TALENT_PREFIX,
-          placeholder: DEFAULT_TALENT_PREFIX,
-        },
         {
           id: 'scoreboard-url',
           title: 'Scoreboard URL',
@@ -56,36 +46,24 @@ export const getTalentOptions = (timeFormat: string): ViewOption[] => {
           type: 'string',
           placeholder: '1',
         },
-        {
-          id: 'vmix-auth',
-          title: 'vMix video auth',
-          description: 'Auth token of the vMix video socket used for the live feed',
-          type: 'string',
-          defaultValue: DEFAULT_VMIX_AUTH,
-          placeholder: DEFAULT_VMIX_AUTH,
-        },
       ],
     },
   ];
 };
 
 export type TalentOptions = {
-  talentPrefix: string;
   scoreboardUrl: string | null;
   vmixHost: string | null;
   vmixInput: string | null;
-  vmixAuth: string | null;
 } & TimeOptions;
 
 function getOptionsFromParams(searchParams: URLSearchParams, defaultValues?: URLSearchParams): TalentOptions {
   const getValue = (key: string) => defaultValues?.get(key) ?? searchParams.get(key);
 
   return {
-    talentPrefix: getValue('talent-prefix') || DEFAULT_TALENT_PREFIX,
     scoreboardUrl: getValue('scoreboard-url') || DEFAULT_SCOREBOARD_URL,
     vmixHost: getValue('vmix-host') || DEFAULT_VMIX_HOST,
     vmixInput: getValue('vmix-input'),
-    vmixAuth: getValue('vmix-auth') || DEFAULT_VMIX_AUTH,
     timeformat: getTimeOptionsFromParams(searchParams, defaultValues),
   };
 }

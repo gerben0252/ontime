@@ -12,6 +12,7 @@ export enum OptionTitle {
   Schedule = 'Schedule options',
   Vmix = 'vMix connection',
   TeamPerformance = 'TeamPerformance',
+  Telestrator = 'Telestrator',
 
   /** rendered as hidden inputs */
   Hidden = 'Hidden options',

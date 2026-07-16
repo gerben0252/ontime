@@ -1,5 +1,7 @@
 import { OntimeView } from 'ontime-types';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { LuChevronRight, LuPen } from 'react-icons/lu';
+import { Link } from 'react-router';
 
 import RemainingBar from '../../common/components/remaining-bar/RemainingBar';
 import EmptyPage from '../../common/components/state/EmptyPage';
@@ -7,14 +9,9 @@ import ViewParamsEditor from '../../common/components/view-params-editor/ViewPar
 import useCustomFields from '../../common/hooks-query/useCustomFields';
 import { useWindowTitle } from '../../common/hooks/useWindowTitle';
 import { cx } from '../../common/utils/styleUtils';
-import {
-  DEFAULT_VMIX_PORT,
-  vmixMergeToInput,
-  vmixOverlayIn,
-  vmixOverlayOut,
-  vmixSelectDataSourceRow,
-} from '../../common/utils/vmix';
+import { DEFAULT_VMIX_PORT, vmixOverlayIn, vmixOverlayOut, vmixSelectDataSourceRow } from '../../common/utils/vmix';
 import Loader from '../common/loader/Loader';
+import { MERGE_DURATION, PRESENTER_FIELD, TALENT_PREFIX, VMIX_FRAGMENT_PREFIX } from '../talent/talent.constants';
 import { COLOR_DANGER, COLOR_WARNING, getPhaseColor, toClock } from '../talent/talent.presentation';
 import { TalentData, useTalentData } from '../talent/useTalentData';
 import { useTalentState } from '../talent/useTalentState';
@@ -23,7 +20,7 @@ import { getTalentDeskOptions, useTalentDeskOptions } from './talentDesk.options
 import TalentNotesDialog from './TalentNotesDialog';
 import TeamPerformance from './TeamPerformance';
 import { LineupTeam } from './teamPerformance.utils';
-import { useVmixInputs } from './useVmixInputs';
+import { useFragments } from './useFragments';
 
 import './TalentDesk.scss';
 
@@ -44,17 +41,7 @@ export default function TalentDeskLoader() {
 }
 
 function TalentDesk({ entries, flatOrder }: TalentData) {
-  const {
-    talentPrefix,
-    presenterField,
-    teamPerformanceIp,
-    vmixHost,
-    vmixButtonPrefix,
-    mergeDuration,
-    vmixDatasource,
-    lineupInput,
-    lineupOverlay,
-  } = useTalentDeskOptions();
+  const { teamPerformanceIp, vmixHost, vmixDatasource, lineupInput, lineupOverlay } = useTalentDeskOptions();
 
   const {
     nowNote,
@@ -66,30 +53,18 @@ function TalentDesk({ entries, flatOrder }: TalentData) {
     groupDuration,
     warningThreshold,
     dangerThreshold,
-  } = useTalentState(entries, flatOrder, talentPrefix);
+  } = useTalentState(entries, flatOrder, TALENT_PREFIX);
 
-  const { inputs, active } = useVmixInputs(vmixHost, DEFAULT_VMIX_PORT, vmixButtonPrefix);
+  const fragments = useFragments(vmixHost, VMIX_FRAGMENT_PREFIX, MERGE_DURATION);
   const { data: customFields } = useCustomFields();
 
   /** row of the team currently pushed to the lineup overlay, null when the overlay is out */
   const [shownTeamRow, setShownTeamRow] = useState<number | null>(null);
   const [isNotesOpen, setNotesOpen] = useState(false);
-  /** the last non-fragment input seen on program, ie. the studio to return to */
-  const [studioInput, setStudioInput] = useState<string | null>(null);
-
-  const fragmentNumbers = useMemo(() => new Set(inputs.map((input) => input.number)), [inputs]);
-
-  // whenever program sits on something that is not a fragment, that is the studio.
-  // remembering it lets a live fragment toggle back to where we came from.
-  useEffect(() => {
-    if (active && !fragmentNumbers.has(active)) {
-      setStudioInput(active);
-    }
-  }, [active, fragmentNumbers]);
 
   // presenter notes of the talent event on air, shown under the event note
-  const presenterNotes = (nowTalentEvent?.custom[presenterField] as string | undefined) ?? '';
-  const presenterLabel = customFields[presenterField]?.label ?? 'Presenter notes';
+  const presenterNotes = (nowTalentEvent?.custom[PRESENTER_FIELD] as string | undefined) ?? '';
+  const presenterLabel = customFields[PRESENTER_FIELD]?.label ?? 'Presenter notes';
 
   const deskOptions = useMemo(() => getTalentDeskOptions(), []);
 
@@ -115,20 +90,6 @@ function TalentDesk({ entries, flatOrder }: TalentData) {
     if (lineupInput) {
       await vmixOverlayIn(vmixHost, DEFAULT_VMIX_PORT, lineupOverlay, lineupInput);
     }
-  };
-
-  /**
-   * Tapping a fragment merges to it. Tapping the fragment that is already live
-   * merges back to the studio, so the same button plays and stops it.
-   */
-  const onInputPress = (input: string) => {
-    if (!vmixHost) return;
-
-    const target = input === active ? studioInput : input;
-    // nothing to return to yet, eg. the page loaded while a fragment was already live
-    if (!target) return;
-
-    vmixMergeToInput(vmixHost, DEFAULT_VMIX_PORT, target, mergeDuration);
   };
 
   return (
@@ -190,21 +151,21 @@ function TalentDesk({ entries, flatOrder }: TalentData) {
         </DeskPanel>
 
         <DeskPanel title='Fragmenten' className='desk__fragments'>
-          {inputs.length === 0 ? (
-            <div className='desk__fragments-empty'>No vMix inputs matching “{vmixButtonPrefix}”</div>
+          {fragments.inputs.length === 0 ? (
+            <div className='desk__fragments-empty'>No vMix inputs matching “{VMIX_FRAGMENT_PREFIX}”</div>
           ) : (
             <div className='desk__fragments-grid'>
-              {inputs.map((input) => {
-                const isLive = input.number === active;
+              {fragments.inputs.map((input) => {
+                const isLive = input.number === fragments.active;
                 return (
                   <button
                     key={input.number}
                     type='button'
                     className={cx(['desk__button', isLive && 'desk__button--live'])}
                     // a live fragment can only be stopped once we know where to return to
-                    disabled={isLive && !studioInput}
+                    disabled={fragments.isDisabled(input.number)}
                     title={isLive ? 'Back to studio' : undefined}
-                    onClick={() => onInputPress(input.number)}
+                    onClick={() => fragments.press(input.number)}
                   >
                     {input.label}
                   </button>
@@ -213,6 +174,14 @@ function TalentDesk({ entries, flatOrder }: TalentData) {
             </div>
           )}
         </DeskPanel>
+
+        {/* switching to the telestrator is a mode change, so it reads as its own action
+            rather than a link tucked into a panel header */}
+        <Link to='/talent-telestrator' className='desk__telestrator'>
+          <LuPen className='desk__telestrator-icon' />
+          <span className='desk__telestrator-label'>Telestrator</span>
+          <LuChevronRight className='desk__telestrator-chevron' />
+        </Link>
       </div>
 
       <TalentNotesDialog
@@ -220,8 +189,8 @@ function TalentDesk({ entries, flatOrder }: TalentData) {
         onClose={() => setNotesOpen(false)}
         talentEvents={talentEvents}
         entries={entries}
-        field={presenterField}
-        talentPrefix={talentPrefix}
+        field={PRESENTER_FIELD}
+        talentPrefix={TALENT_PREFIX}
         currentEventId={nowTalentEvent?.id ?? null}
       />
     </div>

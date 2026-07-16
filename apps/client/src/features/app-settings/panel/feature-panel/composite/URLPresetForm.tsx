@@ -28,6 +28,7 @@ const targetOptions: SelectOption<OntimeViewPresettable>[] = [
   { value: OntimeView.ProjectInfo, label: 'Project Info' },
   { value: OntimeView.Talent, label: 'Talent' },
   { value: OntimeView.TalentDesk, label: 'Talent Desk' },
+  { value: OntimeView.TalentTelestrator, label: 'Talent Telestrator' },
 ];
 
 const defaultValues: URLPreset = {

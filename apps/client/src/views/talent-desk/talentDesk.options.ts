@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router';
 import { OptionTitle } from '../../common/components/view-params-editor/constants';
 import { ViewOption } from '../../common/components/view-params-editor/viewParams.types';
 import { PresetContext } from '../../common/context/PresetContext';
-import { DEFAULT_TALENT_PREFIX, DEFAULT_VMIX_HOST } from '../talent/talent.options';
+import { DEFAULT_VMIX_HOST } from '../talent/talent.options';
 
 /** TeamPerformance always serves its datasources on this port and path, only the host changes */
 const TEAM_PERFORMANCE_PORT = 5005;
@@ -16,11 +16,7 @@ export type TeamPerformanceSheet = (typeof TEAM_PERFORMANCE_SHEETS)[number];
 
 export const DEFAULT_TEAM_PERFORMANCE_IP = '10.12.0.71';
 export const DEFAULT_VMIX_DATASOURCE = 'lineup';
-export const DEFAULT_VMIX_BUTTON_PREFIX = 'TALENT-';
-export const DEFAULT_MERGE_DURATION = 500;
 export const DEFAULT_LINEUP_OVERLAY = 1;
-/** custom field key holding the presenter notes, shown under the event note and edited from the popup */
-export const DEFAULT_PRESENTER_FIELD = 'Presenter_Notes';
 
 /** Builds a TeamPerformance datasource endpoint from the configured host */
 export function buildDatasourceUrl(ip: string, sheet: TeamPerformanceSheet): string {
@@ -29,28 +25,6 @@ export function buildDatasourceUrl(ip: string, sheet: TeamPerformanceSheet): str
 
 export const getTalentDeskOptions = (): ViewOption[] => {
   return [
-    {
-      title: OptionTitle.DataSources,
-      collapsible: true,
-      options: [
-        {
-          id: 'talent-prefix',
-          title: 'Talent prefix',
-          description: 'Events are only shown to talent when their title starts with this prefix',
-          type: 'string',
-          defaultValue: DEFAULT_TALENT_PREFIX,
-          placeholder: DEFAULT_TALENT_PREFIX,
-        },
-        {
-          id: 'presenter-field',
-          title: 'Presenter notes field',
-          description: 'Custom field shown under the notes and edited in the notes popup',
-          type: 'string',
-          defaultValue: DEFAULT_PRESENTER_FIELD,
-          placeholder: DEFAULT_PRESENTER_FIELD,
-        },
-      ],
-    },
     {
       title: OptionTitle.Vmix,
       collapsible: true,
@@ -62,22 +36,6 @@ export const getTalentDeskOptions = (): ViewOption[] => {
           type: 'string',
           defaultValue: DEFAULT_VMIX_HOST,
           placeholder: DEFAULT_VMIX_HOST,
-        },
-        {
-          id: 'vmix-button-prefix',
-          title: 'Switch button prefix',
-          description: 'A switch button appears for every vMix input whose title starts with this prefix',
-          type: 'string',
-          defaultValue: DEFAULT_VMIX_BUTTON_PREFIX,
-          placeholder: DEFAULT_VMIX_BUTTON_PREFIX,
-        },
-        {
-          id: 'merge-duration',
-          title: 'Merge duration',
-          description: 'Length in milliseconds of the Merge transition used by the switch buttons',
-          type: 'number',
-          defaultValue: DEFAULT_MERGE_DURATION,
-          placeholder: String(DEFAULT_MERGE_DURATION),
         },
       ],
     },
@@ -106,7 +64,7 @@ export const getTalentDeskOptions = (): ViewOption[] => {
           title: 'Lineup graphic input',
           description: 'vMix input shown when a team is tapped, tapping does nothing until this is set',
           type: 'string',
-          placeholder: '4',
+          placeholder: 'Lineup',
         },
         {
           id: 'lineup-overlay',
@@ -122,13 +80,9 @@ export const getTalentDeskOptions = (): ViewOption[] => {
 };
 
 export type TalentDeskOptions = {
-  talentPrefix: string;
-  presenterField: string;
   /** host serving the TeamPerformance datasources */
   teamPerformanceIp: string;
   vmixHost: string | null;
-  vmixButtonPrefix: string;
-  mergeDuration: number;
   vmixDatasource: string;
   lineupInput: string | null;
   lineupOverlay: number;
@@ -143,12 +97,8 @@ function getOptionsFromParams(searchParams: URLSearchParams, defaultValues?: URL
   const getValue = (key: string) => defaultValues?.get(key) ?? searchParams.get(key);
 
   return {
-    talentPrefix: getValue('talent-prefix') || DEFAULT_TALENT_PREFIX,
-    presenterField: getValue('presenter-field') || DEFAULT_PRESENTER_FIELD,
     teamPerformanceIp: getValue('teamperformance-ip') || DEFAULT_TEAM_PERFORMANCE_IP,
     vmixHost: getValue('vmix-host') || DEFAULT_VMIX_HOST,
-    vmixButtonPrefix: getValue('vmix-button-prefix') || DEFAULT_VMIX_BUTTON_PREFIX,
-    mergeDuration: toNumber(getValue('merge-duration'), DEFAULT_MERGE_DURATION),
     vmixDatasource: getValue('vmix-datasource') || DEFAULT_VMIX_DATASOURCE,
     lineupInput: getValue('lineup-input'),
     lineupOverlay: toNumber(getValue('lineup-overlay'), DEFAULT_LINEUP_OVERLAY),

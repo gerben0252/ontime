@@ -22,6 +22,7 @@ const Timeline = lazy(() => import('./views/timeline/TimelinePage'));
 const ProjectInfo = lazy(() => import('./views/project-info/ProjectInfo'));
 const Talent = lazy(() => import('./views/talent/Talent'));
 const TalentDesk = lazy(() => import('./views/talent-desk/TalentDesk'));
+const TalentTelestrator = lazy(() => import('./views/talent-desk/TalentTelestrator'));
 
 const Editor = lazy(() => import('./views/editor/ProtectedEditor'));
 const Cuesheet = lazy(() => import('./views/cuesheet/ProtectedCuesheet'));
@@ -115,6 +116,15 @@ export default function AppRouter() {
             </ViewLoader>
           }
         />
+        <Route
+          path='talent-telestrator'
+          element={
+            <ViewLoader>
+              <ViewNavigationMenu isNavigationLocked={getIsNavigationLocked()} />
+              <TalentTelestrator />
+            </ViewLoader>
+          }
+        />
         {/*/!* Protected Routes *!/*/}
         <Route path='editor' element={<Editor />} />
         <Route path='cuesheet' element={<Cuesheet />} />
@@ -187,6 +197,7 @@ const PresetViewMap: Record<OntimeViewPresettable, ComponentType> = {
   [OntimeView.ProjectInfo]: ProjectInfo,
   [OntimeView.Talent]: Talent,
   [OntimeView.TalentDesk]: TalentDesk,
+  [OntimeView.TalentTelestrator]: TalentTelestrator,
 };
 
 /**

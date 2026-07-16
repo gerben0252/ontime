@@ -7,12 +7,14 @@ import EmptyPage from '../../common/components/state/EmptyPage';
 import ViewParamsEditor from '../../common/components/view-params-editor/ViewParamsEditor';
 import VmixVideo from '../../common/components/vmix-video/VmixVideo';
 import { useScoreboard } from '../../common/hooks-query/useScoreboard';
+import { useVmixAuth } from '../../common/hooks-query/useVmixAuth';
 import { useVmixStatus } from '../../common/hooks-query/useVmixStatus';
 import { useAutoTickingClock } from '../../common/hooks/useAutoTickingClock';
 import { useWindowTitle } from '../../common/hooks/useWindowTitle';
 import { timerPlaceholderMin } from '../../common/utils/styleUtils';
 import { formatTime, getDefaultFormat } from '../../common/utils/time';
 import Loader from '../common/loader/Loader';
+import { TALENT_PREFIX } from './talent.constants';
 import { COLOR_DANGER, COLOR_WARNING, getPhaseColor, getVmixDisplay, toClock } from './talent.presentation';
 import { DEFAULT_VMIX_PORT, getTalentOptions, useTalentOptions } from './talent.options';
 import { TalentData, useTalentData } from './useTalentData';
@@ -37,7 +39,10 @@ export default function TalentLoader() {
 }
 
 function Talent({ entries, flatOrder, isMirrored, settings }: TalentData) {
-  const { timeformat, talentPrefix, scoreboardUrl, vmixHost, vmixInput, vmixAuth } = useTalentOptions();
+  const { timeformat, scoreboardUrl, vmixHost, vmixInput } = useTalentOptions();
+
+  // vMix mints a new video socket token on every restart, so it is read from vMix itself
+  const { video: vmixAuth } = useVmixAuth(vmixHost, DEFAULT_VMIX_PORT);
 
   const {
     nowSegment,
@@ -49,7 +54,7 @@ function Talent({ entries, flatOrder, isMirrored, settings }: TalentData) {
     groupDuration,
     warningThreshold,
     dangerThreshold,
-  } = useTalentState(entries, flatOrder, talentPrefix);
+  } = useTalentState(entries, flatOrder, TALENT_PREFIX);
 
   const vmix = useVmixStatus(vmixHost, DEFAULT_VMIX_PORT, vmixInput);
   const scoreboard = useScoreboard(scoreboardUrl);

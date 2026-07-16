@@ -13,6 +13,7 @@ export enum OntimeView {
   ProjectInfo = 'info',
   Talent = 'talent',
   TalentDesk = 'talent-desk',
+  TalentTelestrator = 'talent-telestrator',
 }
 
 export type OntimeViewPresettable = Exclude<OntimeView, OntimeView.Editor>;
