@@ -14,7 +14,6 @@ import style from './TimeInputFlow.module.scss';
 
 interface TimeInputFlowProps {
   eventId: string;
-  countToEnd: boolean;
   timeStart: number;
   timeEnd: number;
   duration: number;
@@ -22,12 +21,12 @@ interface TimeInputFlowProps {
   linkStart: boolean;
   delay: number;
   showLabels?: boolean;
+  showWarnings?: boolean;
 }
 
 export default memo(TimeInputFlow);
 function TimeInputFlow({
   eventId,
-  countToEnd,
   timeStart,
   timeEnd,
   duration,
@@ -35,6 +34,7 @@ function TimeInputFlow({
   linkStart,
   delay,
   showLabels,
+  showWarnings = true,
 }: TimeInputFlowProps) {
   const { updateEntry, updateTimer } = useEntryActionsContext();
 
@@ -54,10 +54,6 @@ function TimeInputFlow({
   const warnings = [];
   if (timeStart + duration > dayInMs) {
     warnings.push('Over midnight');
-  }
-
-  if (countToEnd) {
-    warnings.push('Count to End');
   }
 
   const hasDelay = delay !== 0;
@@ -136,11 +132,19 @@ function TimeInputFlow({
         </TimeInputGroup>
       </div>
 
-      {warnings.length > 0 && (
-        <Tooltip text={warnings.join(' - ')} className={style.timerNote} data-testid='event-warning' render={<span />}>
-          <IoAlertCircleOutline />
-        </Tooltip>
-      )}
+      {showWarnings &&
+        (warnings.length > 0 ? (
+          <Tooltip
+            text={warnings.join(' - ')}
+            className={style.timerNote}
+            data-testid='event-warning'
+            render={<span />}
+          >
+            <IoAlertCircleOutline />
+          </Tooltip>
+        ) : (
+          <span className={`${style.timerNote} ${style.timerNotePlaceholder}`} aria-hidden='true' />
+        ))}
     </>
   );
 }
