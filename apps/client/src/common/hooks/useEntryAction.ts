@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   EntryId,
-  InsertOptions,
   MaybeString,
   OntimeDelay,
   OntimeEntry,
@@ -60,8 +59,14 @@ export type EventOptions = Partial<{
   before: MaybeString;
   // options of entries of type OntimeEvent
   linkPrevious: boolean;
+  /** the timing reference for the new entry, usually the same as after */
   lastEventId: MaybeString;
 }>;
+
+type ClientInsertOptions = {
+  after?: EntryId;
+  before?: EntryId;
+};
 
 /**
  * Gather utilities for actions on entries in the loaded rundown.
@@ -120,7 +125,7 @@ function useEntryActionsForRundown(scopedRundownId: string | undefined) {
    * @private
    */
   const { mutateAsync: addEntryMutation } = useMutation({
-    mutationFn: ([rundownId, entry]: [string, PatchWithId & InsertOptions]) => postAddEntry(rundownId, entry),
+    mutationFn: ([rundownId, entry]: [string, PatchWithId & ClientInsertOptions]) => postAddEntry(rundownId, entry),
     onMutate: async ([_rundownId, entry]) => {
       const queryKey = resolveCurrentRundownQueryKey();
       await queryClient.cancelQueries({ queryKey });
@@ -149,8 +154,9 @@ function useEntryActionsForRundown(scopedRundownId: string | undefined) {
         addToRundown(
           newRundown,
           optimisticEntry,
-          afterId,
           parent ? (newRundown.entries[parent.id] as OntimeGroup) : null,
+          afterId,
+          entry.before ?? null,
         );
 
         queryClient.setQueryData<Rundown>(queryKey, newRundown);
@@ -193,7 +199,7 @@ function useEntryActionsForRundown(scopedRundownId: string | undefined) {
         throw new Error('Rundown not initialised');
       }
 
-      const newEntry: PatchWithId & InsertOptions = { ...entry, id: generateId() };
+      const newEntry: PatchWithId & ClientInsertOptions = { ...entry, id: generateId() };
 
       // handle adding options that concern all event types
       if (options?.after) {
@@ -205,8 +211,8 @@ function useEntryActionsForRundown(scopedRundownId: string | undefined) {
 
       // ************* CHECK OPTIONS specific to events
       if (isOntimeEvent(newEntry)) {
+        // last event id is the timing reference of the previous OntimeEvent in rundown
         if (options?.lastEventId) {
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- we know this is a value
           const previousEvent = rundownData.entries[options?.lastEventId];
           if (isOntimeEvent(previousEvent)) {
             newEntry.timeStart = previousEvent.timeEnd;
@@ -284,7 +290,7 @@ function useEntryActionsForRundown(scopedRundownId: string | undefined) {
    * Clone an entry
    */
   const clone = useCallback(
-    async (entryId: EntryId, options?: InsertOptions) => {
+    async (entryId: EntryId, options?: ClientInsertOptions) => {
       try {
         const rundownId = getCurrentRundownData()?.id;
         if (!rundownId) {
@@ -1057,7 +1063,7 @@ function optimisticDeleteEntries(entryIds: EntryId[], rundown: Rundown) {
 /**
  * Utility to create an optimistic entry for immediate cache insertion
  */
-function createOptimisticEntry(payload: PatchWithId & InsertOptions): OntimeEntry {
+function createOptimisticEntry(payload: PatchWithId & ClientInsertOptions): OntimeEntry {
   const { after: _after, before: _before, ...entryData } = payload;
   const id = entryData.id;
   let parent: EntryId | null = null;
