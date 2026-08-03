@@ -10,8 +10,8 @@
     "test:pipeline": "vitest run"
   },
   "dependencies": {
-    "deepmerge-ts": "^7.0.3",
-    "nanoid": "^5.0.7"
+    "deepmerge-ts": "^7.1.5",
+    "nanoid": "^6.0.0"
   },
   "devDependencies": {
     "ontime-types": "workspace:*",
