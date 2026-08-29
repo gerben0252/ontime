@@ -12,23 +12,24 @@ import { useUpdateUrlPreset } from '../../../../../common/hooks-query/useUrlPres
 import { isUrlSafe } from '../../../../../common/utils/regex';
 import { enDash } from '../../../../../common/utils/styleUtils';
 import { generateUrlPresetOptions } from '../../../../../common/utils/urlPresets';
+import { viewLabels } from '../../../../../viewerConfig';
 import CuesheetLinkOptions, { CuesheetPermissionValues } from '../../../../sharing/composite/CuesheetLinkOptions';
 import * as Panel from '../../../panel-utils/PanelUtils';
 
 import style from './URLPresetForm.module.scss';
 
 const targetOptions: SelectOption<OntimeViewPresettable>[] = [
-  { value: OntimeView.Cuesheet, label: 'Cuesheet' },
-  { value: OntimeView.Operator, label: 'Operator' },
-  { value: OntimeView.Timer, label: 'Timer' },
-  { value: OntimeView.Backstage, label: 'Backstage' },
-  { value: OntimeView.Timeline, label: 'Timeline' },
-  { value: OntimeView.StudioClock, label: 'Studio Clock' },
-  { value: OntimeView.Countdown, label: 'Countdown' },
-  { value: OntimeView.ProjectInfo, label: 'Project Info' },
-  { value: OntimeView.Talent, label: 'Talent' },
-  { value: OntimeView.TalentDesk, label: 'Talent Desk' },
-  { value: OntimeView.TalentTelestrator, label: 'Talent Telestrator' },
+  { value: OntimeView.Cuesheet, label: viewLabels[OntimeView.Cuesheet] },
+  { value: OntimeView.Operator, label: viewLabels[OntimeView.Operator] },
+  { value: OntimeView.Timer, label: viewLabels[OntimeView.Timer] },
+  { value: OntimeView.Backstage, label: viewLabels[OntimeView.Backstage] },
+  { value: OntimeView.Timeline, label: viewLabels[OntimeView.Timeline] },
+  { value: OntimeView.StudioClock, label: viewLabels[OntimeView.StudioClock] },
+  { value: OntimeView.Countdown, label: viewLabels[OntimeView.Countdown] },
+  { value: OntimeView.ProjectInfo, label: viewLabels[OntimeView.ProjectInfo] },
+  { value: OntimeView.Talent, label: viewLabels[OntimeView.Talent] },
+  { value: OntimeView.TalentDesk, label: viewLabels[OntimeView.TalentDesk] },
+  { value: OntimeView.TalentTelestrator, label: viewLabels[OntimeView.TalentTelestrator] },
 ];
 
 const formId = 'url-preset-form';
